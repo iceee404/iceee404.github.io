@@ -20,15 +20,21 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Gemini","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://example.com/categories/JavaSE/index.html">
+  <meta name="description" content="继承基于已有的类创建新的类 继承已经存在的类就是 复用这些类的方法，而且可以增加一些新的方法和字段，使新类适应更具体的环境 是啥，是一种手段功能，做什么的手段，做什么的功能 既然是功能，就有自己的规则，规则是什么，需要注意什么 学完是什么了，怎么用了，知道继承的优缺点，什么时候用什么时候不用 继承缺点，只能单继承，接口弥补了这个缺点  继承是面向对象的一大特征，把最基础，最普通的方法抽取出来放在父">
+<meta property="og:type" content="article">
+<meta property="og:title" content="继承教案">
+<meta property="og:url" content="http://example.com/2021/11/01/%E7%BB%A7%E6%89%BF/index.html">
 <meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="继承基于已有的类创建新的类 继承已经存在的类就是 复用这些类的方法，而且可以增加一些新的方法和字段，使新类适应更具体的环境 是啥，是一种手段功能，做什么的手段，做什么的功能 既然是功能，就有自己的规则，规则是什么，需要注意什么 学完是什么了，怎么用了，知道继承的优缺点，什么时候用什么时候不用 继承缺点，只能单继承，接口弥补了这个缺点  继承是面向对象的一大特征，把最基础，最普通的方法抽取出来放在父">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2021/11/01/%E7%BB%A7%E6%89%BF/image-20211028214033216.png">
+<meta property="article:published_time" content="2021-10-31T18:30:49.000Z">
+<meta property="article:modified_time" content="2021-11-18T09:11:29.471Z">
 <meta property="article:author" content="0xiceee">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2021/11/01/%E7%BB%A7%E6%89%BF/image-20211028214033216.png">
 
-<link rel="canonical" href="http://example.com/categories/JavaSE/">
+<link rel="canonical" href="http://example.com/2021/11/01/%E7%BB%A7%E6%89%BF/">
 
 
 <script id="page-configurations">
@@ -36,12 +42,12 @@
   CONFIG.page = {
     sidebar: "",
     isHome : false,
-    isPost : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>分类: JavaSE | Hexo</title>
+  <title>继承教案 | Hexo</title>
   
 
 
@@ -163,71 +169,172 @@
         <div class="content-wrap">
           
 
-          <div class="content category">
+          <div class="content post posts-expand">
             
 
+    
   
   
-  
-  <div class="post-block">
-    <div class="posts-collapse">
-      <div class="collection-title">
-        <h2 class="collection-header">JavaSE
-          <small>分类</small>
-        </h2>
-      </div>
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/11/01/%E7%BB%A7%E6%89%BF/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="0xiceee">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          继承教案
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-11-01 02:30:49" itemprop="dateCreated datePublished" datetime="2021-11-01T02:30:49+08:00">2021-11-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-11-18 17:11:29" itemprop="dateModified" datetime="2021-11-18T17:11:29+08:00">2021-11-18</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/JavaSE/" itemprop="url" rel="index"><span itemprop="name">JavaSE</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
 
       
-    <div class="collection-year">
-      <span class="collection-header">2021</span>
+        <h1 id="继承"><a href="#继承" class="headerlink" title="继承"></a>继承</h1><p>基于已有的类创建新的类</p>
+<p>继承已经存在的类就是 复用这些类的方法，而且可以增加一些新的方法和字段，使新类适应更具体的环境</p>
+<p>是啥，是一种手段功能，做什么的手段，做什么的功能</p>
+<p>既然是功能，就有自己的规则，规则是什么，需要注意什么</p>
+<p>学完是什么了，怎么用了，知道继承的优缺点，什么时候用什么时候不用</p>
+<p>继承缺点，只能单继承，接口弥补了这个缺点</p>
+<blockquote>
+<p>继承是面向对象的一大特征，把最基础，最普通的方法抽取出来放在父类里以实现复用。</p>
+</blockquote>
+<ul>
+<li><strong>被继承的类（父类，超类，基类）</strong></li>
+<li><strong>继承出来的类（子类，孩子类）</strong></li>
+<li><strong>extends</strong></li>
+</ul>
+<p>java里每个类只能有一个父类</p>
+<p>子类扩展了父类，子类可以获得父类中非私有的变量和方法（static修饰的是类变量，描述类自己的的东西，不是成员变量，也无法被继承，不在本节课研究范围内）</p>
+<p>子类比父类的功能更多</p>
+<p>演示，</p>
+<p>先创建一个animals父类，写上基础的属性，最通用的，最基础的属性</p>
+<p>写一个dog去继承</p>
+<p>写一个main里面新建dog对象然后，dog.  去调用，可以看到dog类里虽然没有方法和属性，但是却可以.出来一堆成员变量和方法，前面几个方法使我们写在父类里dogextends来的，后面的方法暂时先不说哪里来的</p>
+<p>演示完可以调用父类属性后，演示输出 修改 父类属性</p>
+<p>然后在dog里增加自己额外的属性和方法</p>
+<p>增加一个呼吸的爷爷类，让animals继承他，展示一个类只能有一个直接父类，但是可以有多个间接父类</p>
+<p>当dog去继承animal再去继承breath时，就会报错，这个时候应该意识到，为什么要把最简单，最普通的成员变量，方法，放在父类里了</p>
+<p>应该也能get到 继承是为了更好地 复用重复代码的 含义了</p>
+<p>这时候来看dog对象.以后后面没见过没写过的方法，这些方法其实就是object对象的方法 ，</p>
+<p>创建一个新的object对象，看里面的方法</p>
+<p>那为什我没有继承object类我就有了它的方法，其实object类，是所有类的父类</p>
+<p>所以刚才我们说java是单继承，其实就是默认排除object了</p>
+<p>一些继承可能遇到的小问题：</p>
+<ol>
+<li>如果成员变量重名了怎么办，最后用类调用的时候会根据你调用的类就近去调用</li>
+</ol>
+<p>注解是特殊的注释，注解是给人和jvm看</p>
+<p>虚拟机识别到你这个注解后，就知道你这个方法来自父类且修改了</p>
+<p>创建animal类，填入成员变量和方法，强调都是非私有的，最基础的（这个后面再强调一次）</p>
+<p>新建狗类，main方法，去新建一个dog然后dog.发现dog里什么都没写也帮我们实现了最基础的</p>
+<p>调用非私有方法和属性进行输出，再在animal里来个私有的，无法调用</p>
+<p>强调只能有一个直接父类，可以多个间接分类，新建一个alive生命，演示无法多继承，真能单一继承</p>
+<p>介绍object类，所有类的父类，说单继承就是排除在外，然后说object里面的方法打开api介绍一下</p>
+<p>然后开始说一些小细节，</p>
+<p>展示就近原则，新建一个cat类，里面也定义好name，去main里输出看输出的是谁的</p>
+<p>展示如何输出父类的名字super</p>
+<p>任务父类的不好，自己再来实现一遍，介绍注解重写</p>
+<ol>
+<li><p>类名后面跟上extends+被继承的类，代表继承一个类</p>
+</li>
+<li><p>继承只能继承到父类的非私有成员变量和方法</p>
+</li>
+<li><p>继承后可以修改父类已经定义好的变量值</p>
+</li>
+<li><p>把最一般的，最普通的，共有的方法和成员变量写在父类里</p>
+</li>
+<li><p><img src="image-20211028214033216.png" alt="image-20211028214033216"></p>
+<p>在java里，继承只能是单继承，不能集成多个类（如果想要实现多继承这样类似的功能接口）</p>
+<blockquote>
+<p>说java单继承已经是吧object类排除了</p>
+</blockquote>
+</li>
+<li><p>java里会默认使用本对象里的属性，如果没有定义，去找父类里的</p>
+</li>
+<li><p>重写父类方法需要加上注解</p>
+<p>注解是特殊的注释，注解是给人和jvm看</p>
+<p>虚拟机识别到你这个注解后，就知道你这个方法来自父类且修改了</p>
+</li>
+<li><p>super</p>
+<ul>
+<li>调用父类（你需要重写的那割方法所在的类）的成员变量或者方法</li>
+<li>调用父类的构造方法</li>
+</ul>
+</li>
+</ol>
+<ol>
+<li>不要紧张，不能说对</li>
+<li>互动</li>
+<li></li>
+</ol>
+
     </div>
 
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
+    
+    
+    
 
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2021-11-01T02:30:49+08:00"
-              content="2021-11-01">
-          11-01
-        </time>
-      </div>
+      <footer class="post-footer">
 
-      <div class="post-title">
-          <a class="post-title-link" href="/2021/11/01/%E7%BB%A7%E6%89%BF/" itemprop="url">
-            <span itemprop="name">继承教案</span>
-          </a>
-      </div>
+        
 
-    </header>
-  </article>
 
-  <article itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <div class="post-meta">
-        <time itemprop="dateCreated"
-              datetime="2021-04-28T22:41:59+08:00"
-              content="2021-04-28">
-          04-28
-        </time>
-      </div>
-
-      <div class="post-title">
-          <a class="post-title-link" href="/2021/04/28/i-luv-CJ/" itemprop="url">
-            <span itemprop="name">i luv CJ -szy</span>
-          </a>
-      </div>
-
-    </header>
-  </article>
-
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/04/28/i-luv-CJ/" rel="prev" title="i luv CJ -szy">
+      <i class="fa fa-chevron-left"></i> i luv CJ -szy
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/11/17/Proxy/" rel="next" title="Proxy">
+      Proxy <i class="fa fa-chevron-right"></i>
+    </a></div>
     </div>
-  </div>
+      </footer>
+    
+  </article>
   
   
-  
-
   
 
 
@@ -280,6 +387,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%BB%A7%E6%89%BF"><span class="nav-number">1.</span> <span class="nav-text">继承</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
