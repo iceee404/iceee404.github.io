@@ -169,6 +169,1810 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/15/Mysql%E7%AC%94%E8%AE%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="0xiceee">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/08/15/Mysql%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">未命名</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-08-15 11:15:24" itemprop="dateCreated datePublished" datetime="2022-08-15T11:15:24+08:00">2022-08-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-08-09 14:57:52" itemprop="dateModified" datetime="2022-08-09T14:57:52+08:00">2022-08-09</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Mysql笔记"><a href="#Mysql笔记" class="headerlink" title="Mysql笔记"></a>Mysql笔记</h1><ol>
+<li><p>为什么innodb存储引擎选择b+树来做索引结构</p>
+<p>普通二叉树，</p>
+<ul>
+<li>层数太高，io次数多</li>
+<li>节点（每页）只存一个，io次数多</li>
+<li>节点（每页）内的数据存的是此行全部数据，节点存的数据个数少</li>
+<li>极端情况链表</li>
+</ul>
+<p>二叉平衡树</p>
+<ul>
+<li>严格左右子树高度限制，左旋右旋开销大</li>
+</ul>
+<p>b树 balance tree多路平衡查找树</p>
+<ul>
+<li>节点（每页）存多个数据，两个数据三个指针，也就是三个 度degree（分叉数）</li>
+<li>数据下的指针直接指向 磁盘物理存储的位置</li>
+<li>页分裂，页合并 保证树的平衡</li>
+</ul>
+<p>b+树    plus版 b树</p>
+<ul>
+<li>节点（每页）存多个数据，两个数据两个指针</li>
+<li>指针指向子节点（页）</li>
+<li>数据都在叶子节点</li>
+<li>所有数据地址都存在叶子节点上，所以每次查询次数都相同，比B-树稳定</li>
+<li>叶子节点（页）  之间 有指针（InnoDB改成双向指针），查范围更快</li>
+</ul>
+<blockquote>
+<p>相对于二叉树来说（二叉平衡： 由于构造过于严格“不能超过最低一个节点”  在进行增 删节点时难免会导致左旋右旋来操作，增大时间开销，红黑树：红黑树算是二叉树和二叉平衡树  的折中方案  ，都算二叉树），层级更少，搜索效率高</p>
+<p>对于b树（二叉树），无论是叶子结点还是非叶子节点都需要保存数据以及数据的索引（指针），而每个节点的存储最终都是在磁盘的  页/块  上的，固定大小16k，而b+，树非叶子节点只存 索引，这样在跟磁盘io操作会效率更高（切换页、块都需要对磁盘io操作）</p>
+<p>mysql进行过磁盘读取时，是以页为单位进行读取，每个节点表示一页。而平衡二叉树每个节点存储一个关键词，导致存储空间被浪费，导致需要多次io查找，浪费性能</p>
+<p>，而且同样一块存储空间16k，b+存的索引更多，同样的数据量，b树存储需要额外增加高度，降低性能</p>
+<p>同样一个16k大小的节点上 存的索引少了，就类似于 像二叉树退化了（极限情况只存一个数据就是二叉树了），二叉树的话层数自然变多，性能自然下降</p>
+<ul>
+<li>红黑树多用于内部排序，即全放在内存中</li>
+<li>B+树多用于外存上时，B+也被成为一个磁盘友好的数据结构</li>
+<li>红黑树和平衡二叉树有相同缺点，每个节点存储一个关键词，数据量大时，导致红黑树的深度很深，mysql每次读取时消耗大量io </li>
+</ul>
+<p>innodb的b+对经典b+做了修改，叶子节点额外添加了索引，相当于双向链表了，便于排序和范围查找</p>
+<h2 id="B-树相比B-树的优点"><a href="#B-树相比B-树的优点" class="headerlink" title="B+树相比B-树的优点"></a>B+树相比B-树的优点</h2><ul>
+<li>B+树非叶子节点只存储key值，而B-树存储key值和data值，这样B+树每次读取时可以读取到更多的key值</li>
+<li>mysql进行区间访问时，由于B+树叶子节点之间用指针相连，只需要遍历所有的叶子节点即可；而B-树则需要中序遍历那样遍历</li>
+<li>B+树非叶子节点只存储key值，而B-树存储key值和data值，导致B+树的层级更少，查询效率更高</li>
+<li>B+树所有关键词地址都存在叶子节点上，所以每次查询次数都相同，比B-树稳定</li>
+</ul>
+<p>而不用哈希结构是因为，哈希结构是等值匹配无法排序范围查找</p>
+<h2 id="为什么高度为3的B-树存储千万级数据？"><a href="#为什么高度为3的B-树存储千万级数据？" class="headerlink" title="为什么高度为3的B+树存储千万级数据？"></a>为什么高度为3的B+树存储千万级数据？</h2><blockquote>
+<p>解释这个问题的前提，mysql使用InnoDB引擎，mysql默认页文件大小为16k</p>
+</blockquote>
+<p>假设我们一行数据大小为1k，那么一页存储16条数据，也就是说一个叶子节点能存储16条数据</p>
+<p>再来看看非叶子节点，假设主键ID为bigint类型，那么长度为8B，指针大小在InnoDB引擎中的大小为6B，一共14B，那么一页中可以存放16k/14B=1170个(主键+指针)</p>
+<p>也就是说高度为2的B+树可以存储的数据为:1170<em>16=18720条；高度为3的B+树可以存储的数据为:1170</em>1170*16=21902400(千万条数据)</p>
+<p><strong>这也是为什么mysql可以支撑千万级别数据的原因</strong></p>
+<p>性能排行：二叉树 红黑树 二叉平衡树 b+</p>
+</blockquote>
+</li>
+</ol>
+<p>专栏<a target="_blank" rel="noopener" href="https://www.zhihu.com/column/c_1328416218731360256">迈莫coding</a></p>
+<p>写文章</p>
+<p><img src="v2-f275ee89b60272d577cce2c23cae1e75_is.jpg" alt="点击打开iceee的主页"></p>
+<p>迈莫coding</p>
+<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/people/bestiario-98"><img src="v2-4104da055e29964776018a62bef6b9c6_s.jpg" alt="IT界学习笔记"></a></p>
+<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/people/bestiario-98">IT界学习笔记</a></p>
+<p> · </p>
+<p>30 </p>
+<p>篇内容</p>
+<h2 id="揭开http报文的神秘面纱"><a href="#揭开http报文的神秘面纱" class="headerlink" title="揭开http报文的神秘面纱"></a><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/366912538">揭开http报文的神秘面纱</a></h2><p><img src="v2-981ea6d2c990f191554da98706eb64b9_400x224.png" alt="cover"></p>
+<p>今天是计网的第二弹，主要叙述http报文的神秘面纱。相信大家在写项目中，或多或少遇到过，进行http访问时，header头部上需要加上Content-Type、Host等等，但有时候为了项目顺利完成，…阅读全文</p>
+<h1 id="架构，执行一条sql语句发生了什么"><a href="#架构，执行一条sql语句发生了什么" class="headerlink" title="架构，执行一条sql语句发生了什么"></a>架构，执行一条sql语句发生了什么</h1><p><img src="img/image-20220522231727392.png" alt="image-20220522231727392"></p>
+<p>首先查缓存，query_cache默认关闭，后期取消了，因为没有啥用，缓存的是语句对应的结果，多一个空格大小写不对同样结果的语句也无法用缓存，一般用redis代替，缓存结构</p>
+<p>解析器</p>
+<p>关键字，语法解析，比如有（就得有），括号要成对出现</p>
+<p>预处理器</p>
+<p>sql语句里的表名是否真的存在，别名使用错误，用户是否有执行此sql的权限（只读权限无法执行update）</p>
+<p>优化器</p>
+<p>同一条sql语句有多中执行策略，结果都是一致的，优化器判断怎么样执行cost最小，得出一个执行计划</p>
+<p>执行器</p>
+<p>去执行操作</p>
+<h1 id="事务四大特性"><a href="#事务四大特性" class="headerlink" title="事务四大特性"></a>事务四大特性</h1><p>ACID原子性、一致性、隔离性、持久性</p>
+<p>A:  atomicity事务操作是最小分割单位</p>
+<p>C：consistency事务执行前后数据保持一致状态，即all fail or all success</p>
+<p>I：isolation事务不受外界操作影响的隔离环境下运行</p>
+<p>D:  durability事务一旦提交or回滚，产生的数据变化是永久的</p>
+<h1 id="并发事务三个问题"><a href="#并发事务三个问题" class="headerlink" title="并发事务三个问题"></a>并发事务三个问题</h1><p>脏读：一个事务读到另一个事务还没提交的数据</p>
+<p><img src="img/image-20220522224705430.png" alt="image-20220522224705430"></p>
+<blockquote>
+<p>主要是别的事务来 select的隔离级别</p>
+</blockquote>
+<p>不可重复读：一个事务先后读取同一条记录，结果不一致</p>
+<p><img src="img/image-20220522224825708.png" alt="image-20220522224825708"></p>
+<blockquote>
+<p>主要是别的事务来 update的隔离级别</p>
+</blockquote>
+<p>幻读：一个事务按照条件查询不到某行，但是插入时提示此行已经存在</p>
+<p><img src="img/image-20220522224836391.png" alt="image-20220522224836391"></p>
+<blockquote>
+<p>主要是别的事务来 insert的隔离级别,也包括删除delete</p>
+</blockquote>
+<h1 id="事务的隔离级别"><a href="#事务的隔离级别" class="headerlink" title="事务的隔离级别"></a>事务的隔离级别</h1><table>
+<thead>
+<tr>
+<th align="left">隔离级别</th>
+<th align="left">脏读</th>
+<th>不可重复度</th>
+<th>幻读</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">read uncommitted</td>
+<td align="left">√会发生</td>
+<td>√</td>
+<td>√</td>
+</tr>
+<tr>
+<td align="left">read committed（ORACLE默认）</td>
+<td align="left">×不会发生</td>
+<td>√</td>
+<td>√</td>
+</tr>
+<tr>
+<td align="left">repeatable read（MySQL默认）</td>
+<td align="left">×</td>
+<td>×</td>
+<td>√</td>
+</tr>
+<tr>
+<td align="left">serializable</td>
+<td align="left">×</td>
+<td>×</td>
+<td>×</td>
+</tr>
+</tbody></table>
+<p><img src="img/image-20220522225614949.png" alt="image-20220522225614949"></p>
+<h1 id="存储引擎介绍"><a href="#存储引擎介绍" class="headerlink" title="存储引擎介绍"></a>存储引擎介绍</h1><p><img src="img/image-20220522231727392.png" alt="image-20220522231727392"></p>
+<blockquote>
+<p>我们也需要在合适的场景选择合适的存储引擎。</p>
+<p>存储引擎就是<strong>存储数据、建立索引、更新/查询数据</strong>等技术的实现方式 。</p>
+<p>存储引擎是基于表的，而不是基于库的，所以存储引擎也可被称为表类型。</p>
+<p>我们可以在创建表的时候，来指定选择的存储引擎，如果没有指定将自动选择默认的存储引擎。</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">create table my_myisam( </span><br><span class="line">	id int, </span><br><span class="line">	name varchar(10) </span><br><span class="line">) engine &#x3D; MyISAM ;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>DMl：增删改</p>
+<h2 id="InnoDB"><a href="#InnoDB" class="headerlink" title="InnoDB"></a>InnoDB</h2><p>MySQL5.5后默认的存储引擎</p>
+<p>特点：</p>
+<ul>
+<li>支持事务，遵循ACID</li>
+<li>提供行级锁，提高并发访问性能（普通的是表锁，锁的范围粒度太大了）</li>
+<li>支持外键约束，保证数据的完整性和正确性</li>
+</ul>
+<p>存储为xxx.ibd表空间文件，8.0后默认打开innodb_file_per_table每个表对应这样一个表空间文件，里面存的是表结构（frm旧，sdi新）、数据和索引</p>
+<blockquote>
+<p> sdi存的表结构：有什么字段，每个字段的配置，jason格式存储</p>
+</blockquote>
+<p><img src="img/image-20220522232437864.png" alt="image-20220522232437864"></p>
+<p>InnoDB逻辑存储结构</p>
+<p><img src="img/image-20220522232554583.png" alt="image-20220522232554583"></p>
+<h2 id="MyISAM"><a href="#MyISAM" class="headerlink" title="MyISAM"></a>MyISAM</h2><p>MySQL早期默认存储引擎</p>
+<p>特点：</p>
+<ul>
+<li>不支持事务</li>
+<li>不支持外键</li>
+<li>只支持表锁，不支持行锁</li>
+<li>访问速度快</li>
+</ul>
+<p>存储文件：</p>
+<ul>
+<li>xxx.sdi：存储表结构，即有什么字段，每个字段的配置，jason格式存储</li>
+<li>xxx.MYD：存储数据</li>
+<li>xxx.MYI：存储索引</li>
+</ul>
+<p>因为只支持表锁，只建议在 读为主or只读的数据使用</p>
+<h2 id="Memory"><a href="#Memory" class="headerlink" title="Memory"></a>Memory</h2><p>Memory引擎的表数据存储在内存中，硬件or断电等问题数据就没了，只能作为临时表使用或缓存使用</p>
+<p>特点：</p>
+<ul>
+<li>内存存放</li>
+<li>默认使用hash索引</li>
+</ul>
+<p>存储文件：</p>
+<p>xxx.sdi:Memory只需要存储sdi文件，即表结构</p>
+<p>需要考虑的就是 持久性，还有就是内存比较昂贵，数据量大小去要考虑</p>
+<p>csv：数据格式简单，适合导入导出换表操作</p>
+<p>archive：归档专用引擎，不能更改删除操作，只关注数据的 压缩最小空间保存，用来做历史数据归档保存</p>
+<p>区别：</p>
+<img src="img/image-20220522233412618.png" alt="image-20220522233412618" style="zoom: 67%;" />
+
+<p><strong>InnoDB</strong>: 是Mysql的默认存储引擎，支持事务、外键。如果应用对事务的完整性有比较高的要</p>
+<p>求，在并发条件下要求数据的一致性，数据操作除了插入和查询之外，还包含很多的更新、删除操</p>
+<p>作，那么InnoDB存储引擎是比较合适的选择。</p>
+<p><strong>MyISAM</strong> ： 如果应用是以读操作和插入操作为主，只有很少的更新和删除操作，并且对事务的完</p>
+<p>整性、并发性要求不是很高，那么选择这个存储引擎是非常合适的。</p>
+<p>应用：日志相关，电商中 足迹，评论  （不在乎并发，非核心数据，可以偶尔丢数据。）</p>
+<p>同类型的就是MongoDB</p>
+<p><strong>MEMORY</strong>：将所有数据保存在内存中，访问速度快，通常用于<strong>临时表及缓存</strong>。MEMORY的缺陷就是</p>
+<p>对表的大小有限制，太大的表无法缓存在内存中，而且<strong>无法保障数据的安全性</strong>。</p>
+<p>同类型的就是Redis</p>
+<h1 id="索引结构"><a href="#索引结构" class="headerlink" title="索引结构"></a>索引结构</h1><h2 id="b树"><a href="#b树" class="headerlink" title="b树"></a>b树</h2><p><img src="img/image-20220523194420562.png" alt="image-20220523194420562"></p>
+<p><img src="img/image-20220523194433836.png" alt="image-20220523194433836"></p>
+<p><img src="img/image-20220523194443584.png" alt="image-20220523194443584"></p>
+<p>如果索引使用二叉树，有可能形成链表结构，性能大大降低，而且大数据量下，二叉树层级较深。</p>
+<p>红黑树是一种自平衡二叉树，但是大数据量也会层级较深。</p>
+<p>B-Tree（多路平衡查找树）</p>
+<p><img src="img/image-20220523195050686.png" alt="image-20220523195050686"></p>
+<p>B+Tree</p>
+<p><img src="img/image-20220523195146822.png" alt="image-20220523195146822"></p>
+<p>B+Tree 与 B-Tree相比，主要有以下三点区别：</p>
+<ul>
+<li><p>所有的数据都会出现在叶子节点。</p>
+</li>
+<li><p>叶子节点形成一个单向链表。</p>
+</li>
+<li><p>非叶子节点仅仅起到索引数据作用，具体的数据都是在叶子节点存放的。</p>
+</li>
+</ul>
+<p><img src="img/image-20220523195445880.png" alt="image-20220523195445880"></p>
+<h2 id="哈希"><a href="#哈希" class="headerlink" title="哈希"></a>哈希</h2><p><img src="img/image-20220523195636046.png" alt="image-20220523195636046"></p>
+<p>特点：</p>
+<p>A. Hash索引只能用于对等比较(=，in)，<strong>不支持范围查询</strong>（between，&gt;，&lt; ，…）</p>
+<p>B. <strong>无法利用索引完成排序操作</strong></p>
+<p>C. 查询效率高，<strong>通常</strong>(不存在hash冲突的情况)只需要<strong>一次</strong>检索就可以了，效率通常要高于B+tree索 </p>
+<p>引</p>
+<p> 存储引擎支持：</p>
+<p>在MySQL中，支持hash索引的是Memory存储引擎。</p>
+<p> 而InnoDB中具有自适应hash功能，hash索引是InnoDB存储引擎根据B+Tree索引在指定条件下自动构建的。</p>
+<h1 id="索引分类"><a href="#索引分类" class="headerlink" title="索引分类"></a>索引分类</h1><p><img src="img/image-20220523204352484.png" alt="image-20220523204352484"></p>
+<p><img src="img/image-20220523204403608.png" alt="image-20220523204403608"></p>
+<p>聚集索引选取规则:</p>
+<p>如果存在主键，<strong>主键索引</strong>就是聚集索引。</p>
+<p>如果不存在主键，将使用第一个没有null值的唯一（UNIQUE）索引（小注意，唯一索引设置了不可以插入重复值，但是可以插入多个null）作为聚集索引。</p>
+<p>如果表没有主键，或没有合适的唯一索引，则InnoDB会自动生成一个rowid作为隐藏的聚集索</p>
+<p>引。</p>
+<p><img src="img/image-20220523204514626.png" alt="image-20220523204514626"></p>
+<p>所以如果你直接where id = 1，就会币where name = ‘jack’要快，因为id走的聚集索引，直接查到行数据，而name走的二级索引，查到对应name后只有主键id，然后再拿id再来一遍聚集索引查行数据。</p>
+<h1 id="SQL性能分析"><a href="#SQL性能分析" class="headerlink" title="SQL性能分析"></a>SQL性能分析</h1><h2 id="SQL执行频率"><a href="#SQL执行频率" class="headerlink" title="SQL执行频率"></a>SQL执行频率</h2><p>MySQL 客户端连接成功后，通过<code> show [session|global] status</code> 命令可以提供服务器状态信</p>
+<p>息。通过如下指令，可以查看当前数据库的INSERT、UPDATE、DELETE、SELECT的访问频次：</p>
+<p>Com_delete: 删除次数 </p>
+<p>CREATE UNIQUE INDEX idx_user_phone ON tb_user(phone); </p>
+<p>CREATE INDEX idx_user_pro_age_sta ON tb_user(profession,age,status); </p>
+<p>CREATE INDEX idx_email ON tb_user(email); </p>
+<p>show index from tb_user; </p>
+<p>– session 是查看当前会话 ; </p>
+<p>– global 是查询全局数据 ; </p>
+<p><code>SHOW GLOBAL STATUS LIKE &#39;Com_______&#39;; </code></p>
+<p>上面这条命令就是查询全局数据库增删改查的次数。</p>
+<p>Com_delete: 删除次数 </p>
+<p>Com_insert: 插入次数</p>
+<p>Com_select: 查询次数</p>
+<p>Com_update: 更新次数</p>
+<p>通过上述指令，我们可以查看到当前数据库到底是以查询为主，还是以增删改为主，从而为数据</p>
+<p>库优化提供参考依据。</p>
+<p> 如果是以增删改为主，我们可以考虑不对其进行索引的优化。 </p>
+<p><strong>如果是以查询为主，那么就要考虑对数据库的索引进行优化了。</strong></p>
+<p>接下来，我们就来根据MySQL中的慢查询日志找到<strong>慢查询</strong>SQL进行优化。</p>
+<h2 id="慢查询SQL"><a href="#慢查询SQL" class="headerlink" title="慢查询SQL"></a>慢查询SQL</h2><p>慢查询日志记录了所有执行时间超过指定参数（long_query_time，单位：秒，默认10秒）的所有</p>
+<p>SQL语句的日志。</p>
+<p>MySQL的慢查询日志默认没有开启，我们可以查看一下系统变量 <strong>slow_query_log</strong>。</p>
+<img src="img/image-20220523205356973.png" alt="image-20220523205356973" style="zoom:200%;" />
+
+<p>如果要开启慢查询日志，需要在MySQL的配置文件（/etc/my.cnf）中配置如下信息：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># 开启MySQL慢日志查询开关 </span><br><span class="line">slow_query_log&#x3D;1 </span><br><span class="line"># 设置慢日志的时间为2秒，SQL语句执行时间超过2秒，就会视为慢查询，记录慢查询日志 </span><br><span class="line">long_query_time&#x3D;2</span><br></pre></td></tr></table></figure>
+
+
+
+<blockquote>
+<p>在我们开启了慢 SQL 监控后，如果你发现<strong>「偶尔」会出现一些用时稍长的 SQL</strong>，这可能是因为脏页在刷新到磁盘时可能会给数据库带来性能开销，导致数据库操作<strong>抖动</strong>。</p>
+<p>如果间断出现这种现象，就需要调大 Buffer Pool 空间或 redo log 日志的大小。</p>
+</blockquote>
+<p>这样就可以通过慢查询日志，就可以定位出执行效率比较低的SQL，从而有针对性的进行优化。</p>
+<h2 id="profile执行耗时详情"><a href="#profile执行耗时详情" class="headerlink" title="profile执行耗时详情"></a>profile执行耗时详情</h2><p>找到慢SQL后通过profile查看耗时详情</p>
+<p><img src="img/image-20220523210748664.png" alt="image-20220523210748664"></p>
+<h2 id="explain执行计划"><a href="#explain执行计划" class="headerlink" title="explain执行计划"></a>explain执行计划</h2><p>在SQL前加上explain就可以查看</p>
+<p><img src="img/image-20220523211036858.png" alt="image-20220523211036858"></p>
+<p>id:</p>
+<p><img src="img/3FB3FAE295A891993D2C2D8D6F04357E.png" alt="img"></p>
+<p>表示 SELECT 的类型，常见的取值有 SIMPLE（简单表，即不使用表连接或者子查询）、PRIMARY（主查询，即外层的查询）、UNION（UNION 中的第二个或者后面的查询语句）、SUBQUERY（SELECT/WHERE之后包含了子查询）等</p>
+<p>表示连接类型，性能由好到差的连接类型为NULL、system、const、eq_ref、ref、range、 index、all 。</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>id</td>
+<td>select查询的序列号，表示查询中执行select子句或者是操作表的顺序(id相同，执行顺序从上到下；id不同，值越大，越先执行)。</td>
+</tr>
+<tr>
+<td>select_type</td>
+<td>表示 SELECT 的类型，常见的取值有 SIMPLE（简单表，即不使用表连接或者子查询）、PRIMARY（主查询，即外层的查询）、UNION（UNION 中的第二个或者后面的查询语句）、SUBQUERY（SELECT/WHERE之后包含了子查询）等。</td>
+</tr>
+<tr>
+<td>type</td>
+<td>表示连接类型，性能由好到差的连接类型为NULL、system、const、eq_ref、ref、range、 index、all 。</td>
+</tr>
+<tr>
+<td>posible_key</td>
+<td>显示可能应用在这张表上的索引，一个或多个。</td>
+</tr>
+<tr>
+<td>key</td>
+<td>实际使用的索引，如果为NULL，则没有使用索引。</td>
+</tr>
+<tr>
+<td>key_len</td>
+<td>表示索引中使用的字节数， 该值为索引字段最大可能长度，并非实际使用长度，在不损失精确性的前提下， 长度越短越好 。</td>
+</tr>
+<tr>
+<td>rows</td>
+<td>MySQL认为必须要执行查询的行数，在innodb引擎的表中，是一个估计值，可能并不总是准确的。</td>
+</tr>
+<tr>
+<td>filtered</td>
+<td>表示返回结果的行数占需读取行数的百分比， filtered 的值越大越好。</td>
+</tr>
+</tbody></table>
+<h1 id="索引的使用原则"><a href="#索引的使用原则" class="headerlink" title="索引的使用原则"></a>索引的使用原则</h1><h2 id="最左前缀法则"><a href="#最左前缀法则" class="headerlink" title="最左前缀法则"></a>最左前缀法则</h2><p>如果索引了多列（<strong>联合索引</strong>），要遵守最左前缀法则。</p>
+<p>最左前缀法则指的是查询从索引的最左列开始，并且不跳过索引中的列。如果跳跃某一列，索引将会部分失效(后面的字段索引失效)。 </p>
+<p>在 tb_user 表中，有一个联合索引，这个联合索引涉及到三个字段，顺序分别为：profession，age，status。</p>
+<p>对于最左前缀法则指的是，查询时，最左边的列必须存在，否则索引全部失效。</p>
+<p>而且中间不能跳过某一列，否则该列后面的字段索引将失效。 </p>
+<p>最左前缀法则中指的最左边的列，是指在查询时，联合索引的最左边的字段(即是第一个字段)必须存在，<strong>与我们编写SQL时，条件编写的先后顺序无关。</strong></p>
+<h2 id="范围查询"><a href="#范围查询" class="headerlink" title="范围查询"></a>范围查询</h2><p>联合索引中，出现范围查询(&gt;,&lt;)，范围查询右侧的列索引失效。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">explain select * from tb_user where profession &#x3D; &#39;软件工程&#39; and age &gt; 30 and status &#x3D; &#39;0&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>当范围查询使用&gt; 或 &lt; 时，走联合索引了，但是范围查询右边的status字段是没有走索引的。</p>
+<p>所以，在业务允许的情况下，**尽可能的使用类似于 &gt;= 或 &lt;= 这类的范围查询，**而避免使用 &gt; 或 &lt; 。 </p>
+<h2 id="索引列运算"><a href="#索引列运算" class="headerlink" title="索引列运算"></a>索引列运算</h2><p>不要在索引列上进行运算操作， 索引将失效。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">explain select * from tb_user where substring(phone,10,2) &#x3D; &#39;15&#39;;</span><br></pre></td></tr></table></figure>
+
+<p>上面的SQL索引失效，explain后key为null</p>
+<h2 id="字符串不加引号"><a href="#字符串不加引号" class="headerlink" title="字符串不加引号"></a>字符串不加引号</h2><p>字符串类型字段使用时，不加引号，索引将失效。</p>
+<p><img src="img/image-20220523223311687.png" alt="image-20220523223311687"></p>
+<p><img src="img/image-20220523223327789.png" alt="image-20220523223327789"></p>
+<p>经过上面两组示例，我们会明显的发现，如果字符串不加单引号，对于查询结果，没什么影响，但是数</p>
+<p>据库存在隐式类型转换，索引将失效。</p>
+<h2 id="模糊查询"><a href="#模糊查询" class="headerlink" title="模糊查询"></a>模糊查询</h2><p>如果仅仅是尾部模糊匹配，索引不会失效。如果是头部模糊匹配，索引失效。</p>
+<p><img src="img/image-20220523223413762.png" alt="image-20220523223413762"></p>
+<p><img src="img/image-20220523223420102.png" alt="image-20220523223420102"></p>
+<h2 id="or连接条件"><a href="#or连接条件" class="headerlink" title="or连接条件"></a>or连接条件</h2><p>用or分割开的条件， 如果or前的条件中的列有索引，而后面的列中没有索引，那么涉及的索引都不会</p>
+<p>被用到。</p>
+<p><img src="img/image-20220523223547399.png" alt="image-20220523223547399"></p>
+<p>最终，我们发现，当or连接的条件，<strong>左右两侧字段都有索引时，索引才会生效</strong>。</p>
+<h2 id="数据分布影响"><a href="#数据分布影响" class="headerlink" title="数据分布影响"></a>数据分布影响</h2><p>如果MySQL评估使用索引比全表更慢，则不使用索引。</p>
+<p><img src="img/image-20220523223701975.png" alt="image-20220523223701975"></p>
+<p>经过测试我们发现，相同的SQL语句，只是传入的字段值不同，最终的执行计划也完全不一样，这是为</p>
+<p>什么呢？</p>
+<p>就是因为MySQL在查询时，会评估使用索引的效率与走全表扫描的效率，如果走全表扫描更快，则放弃</p>
+<p>索引，走全表扫描。 因为索引是用来索引少量数据的，如果通过索引查询返回大批量的数据，则还不</p>
+<p>如走全表扫描来的快，此时索引就会失效。</p>
+<p>查询时MySQL会评估，走索引快，还是全表扫描快，如果全表扫描更快，则放弃索引走全表扫描。 因此，is null 、is not null是否走索引，得具体情况具体分析，并不是固定的，<strong>如果此表极个别为null，则is null走索引；如果大部分都是null，那就不走索引。</strong></p>
+<p>其实对应的就是数据的 分散集中程度，性别字段就不适合加索引，太集中了就两种，手机号就比较适合加，唯一的字段适合加索引。</p>
+<h2 id="SQL提示"><a href="#SQL提示" class="headerlink" title="SQL提示"></a>SQL提示</h2><p><img src="img/image-20220523233510552.png" alt="image-20220523233510552"></p>
+<h2 id="覆盖索引"><a href="#覆盖索引" class="headerlink" title="覆盖索引"></a>覆盖索引</h2><p>extra：using index代表使用了覆盖索引</p>
+<p>尽量使用覆盖索引，减少select *。 那么什么是覆盖索引呢？ 覆盖索引是指 查询使用了索引，并</p>
+<p>且需要返回的列，在该索引中已经全部能够找到 。 </p>
+<p>实例：</p>
+<p>一张表, 有四个字段(id, username, password, status), 由于数据量大, 需要对</p>
+<p>以下SQL语句进行优化, 该如何进行才是最优方案:</p>
+<p>select id,username,password from tb_user where username =’itcast’;</p>
+<p>答案: 针对于 username, password建立联合索引, </p>
+<p>sql为: create index idx_user_name_pass on tb_user(username,password);</p>
+<p>这样可以避免上述的SQL语句，在查询的过程中，出现回表查询。</p>
+<p><strong>因为有联合索引了，查到对应username的页表（page）上就带有id 和 password，省的再去拿id去聚集索引回表查password。</strong></p>
+<h2 id="前缀索引"><a href="#前缀索引" class="headerlink" title="前缀索引"></a>前缀索引</h2><p>当字段类型为字符串（varchar，text，longtext等）时，有时候需要索引很长的字符串，这会让</p>
+<p>索引变得很大，查询时，浪费大量的磁盘IO， 影响查询效率。此时可以只将字符串的一部分前缀，建</p>
+<p>立索引，这样可以大大节约索引空间，从而提高索引效率。</p>
+<p><img src="img/image-20220523234000027.png" alt="image-20220523234000027"></p>
+<p>前缀的长度越能保证id唯一越好。就是分散程度越大越好。</p>
+<h2 id="单列索引与联合索引"><a href="#单列索引与联合索引" class="headerlink" title="单列索引与联合索引"></a>单列索引与联合索引</h2><p>单列索引：即一个索引只包含单个列。</p>
+<p>联合索引：即一个索引包含了多个列。</p>
+<p><img src="img/image-20220523234126613.png" alt="image-20220523234126613"></p>
+<p><img src="img/image-20220523234139059.png" alt="image-20220523234139059"></p>
+<h1 id="索引设计原则"><a href="#索引设计原则" class="headerlink" title="索引设计原则"></a>索引设计原则</h1><p>1). 针对于数据量较大，且查询比较<strong>频繁</strong>的表建立索引。</p>
+<p>2). 针对于常作为<strong>查询条件</strong>（where）、排序（order by）、分组（group by）操作的字段建立索引。</p>
+<p>3). 尽量选择<strong>区分度高的列</strong>作为索引，尽量建立唯一索引，区分度越高，使用索引的效率越高。</p>
+<p>4). 如果是字符串类型的字段，字段的长度较长，可以针对于字段的特点，建立<strong>前缀索引</strong>。</p>
+<p>5). 尽量使用联合索引，减少单列索引，查询时，联合索引很多时候可以<strong>覆盖索引</strong>，节省存储空间，避免回表，提高查询效率。</p>
+<p>6). 要控制索引的数量，索引并不是多多益善，索引越多，维护索引结构的代价也就越大，会影响<strong>增删改的效率</strong>。</p>
+<p>7). 如果索引列不能存储NULL值，请在创建表时使用NOT NULL<strong>约束</strong>它。当优化器知道每列是否包含NULL值时，它可以更好地确定哪个索引最有效地用于查询。</p>
+<h1 id="SQL优化"><a href="#SQL优化" class="headerlink" title="SQL优化"></a>SQL优化</h1><h2 id="insert插入数据"><a href="#insert插入数据" class="headerlink" title="insert插入数据"></a>insert插入数据</h2><p><img src="img/65667BA5E0ACE726B41E4EA9D492E1FF.png" alt="img"></p>
+<p>默认自动提交事务，一个一个插入频繁开启，提交事务浪费大量性能。</p>
+<p>按照主键顺序，方便生成索引。主键顺序插入性能高于乱序插入。</p>
+<p>如果是数百万量级数据，使用load加载。</p>
+<p><img src="img/A2899FE3D8508657650A8AEC44FE3AF6.png" alt="img"></p>
+<h2 id="主键优化"><a href="#主键优化" class="headerlink" title="主键优化"></a>主键优化</h2><p>主键顺序插入性能高于乱序插入，为什么呢？</p>
+<p><img src="img/image-20220524002622737.png" alt="image-20220524002622737"></p>
+<p><img src="img/image-20220524002714001.png" alt="image-20220524002714001"></p>
+<p><img src="img/image-20220524002750469.png" alt="image-20220524002750469"></p>
+<p>总而言之，就是b+数下面的叶子节点维护的类似于一个链表吧，每个node是个页，存储数据的页，而且这个链表的顺序是按照主键的顺序排列的。</p>
+<p>所以，如果你按照主键顺序插入，使用自增主键，就是按着往后写，如果乱序可能会造成在完成一大半元素插入后插入一个主键靠前的数据，导致此页容量不够存，就会所有后面的元素后移，也就是所说的页分裂。</p>
+<p><strong>所以，按照主键顺序插入可以减少页分裂开销，提升性能。</strong></p>
+<p>同样，为了减少页分裂，要么让页大一点，要么让一页里面多存一点，页大小是硬件无法改变，我们可以让主键长度小一点，一个页内可以存放更多的数据。<strong>这样二级索引下面每个叶子节点挂的主键就能每个页多挂一点，减少空间占用。</strong></p>
+<p><strong>所以尽量不要用uuid或身份证号，因为他们无序且长度过长。</strong></p>
+<h2 id="order-by优化"><a href="#order-by优化" class="headerlink" title="order by优化"></a>order by优化</h2><p>MySQL的排序，有两种方式：</p>
+<p>Using filesort : 通过表的索引或全表扫描，读取满足条件的数据行，然后在排序缓冲区sortbuffer中完成排序操作，所有不是通过索引直接返回排序结果的排序都叫 FileSort 排序。</p>
+<p>Using index : 通过有序索引顺序扫描直接返回有序数据，这种情况即为 using index，不需要额外排序，操作效率高。</p>
+<p>对于以上的两种排序方式，Using index的性能高，而Using filesort的性能低，我们在优化排序</p>
+<p>操作时，尽量要优化为 Using index。</p>
+<p>A. 根据排序字段建立合适的索引，多字段排序时，也遵循最左前缀法则。</p>
+<p>B. 尽量使用覆盖索引。</p>
+<p>C. 多字段排序, 一个升序一个降序，此时需要注意联合索引在创建时的规则（ASC/DESC）。</p>
+<p>D. 如果不可避免的出现filesort，大数据量排序时，可以适当增大排序缓冲区大小sort_buffer_size(默认256k)。 </p>
+<h2 id="group-by优化"><a href="#group-by优化" class="headerlink" title="group by优化"></a>group by优化</h2><p>A. 在分组操作时，可以通过索引来提高效率。</p>
+<p>B. 分组操作时，索引的使用也是满足最左前缀法则的。</p>
+<h2 id="limit优化"><a href="#limit优化" class="headerlink" title="limit优化"></a>limit优化</h2><p>在数据量比较大时，如果进行limit分页查询，在查询时，越往后，分页查询效率越低。</p>
+<p><img src="img/image-20220524195504309.png" alt="image-20220524195504309"></p>
+<p>因为，当在进行分页查询时，如果执行 limit 2000000,10 ，此时需要MySQL排序前2000010 记录，仅仅返回 2000000 - 2000010 的记录，其他记录丢弃，查询排序的代价非常大 。</p>
+<p><img src="img/image-20220524200102841.png" alt="image-20220524200102841"></p>
+<blockquote>
+<p>把子查询当做一个表a，连表查询</p>
+</blockquote>
+<h2 id="count优化"><a href="#count优化" class="headerlink" title="count优化"></a>count优化</h2><p>如果数据量很大，在执行count操作时，是非常耗时的。</p>
+<p>MyISAM 引擎把一个表的总行数存在了磁盘上，因此执行 count(*) 的时候会直接返回这数，效率很高； 但是如果是带条件的count，MyISAM也慢。</p>
+<p>InnoDB 引擎就麻烦了，它执行 count(*) 的时候，需要把数据一行一行地从引擎里面读来，然后累积计数。</p>
+<p>如果说要大幅度提升InnoDB表的count效率，主要的优化思路：自己计数(可以借助于redis这样的数</p>
+<p>据库进行,但是如果是带条件的count又比较麻烦了)。 </p>
+<blockquote>
+<p>count() 是一个聚合函数，对于返回的结果集，一行行地判断，如果 count 函数的参数不是NULL，累计值就加 1，否则不加，最后返回累计值。</p>
+<p>用法：count（*）、count（主键）、count（字段）、count（数字）</p>
+<p><img src="img/image-20220524200358106.png" alt="image-20220524200358106"></p>
+</blockquote>
+<h2 id="update优化"><a href="#update优化" class="headerlink" title="update优化"></a>update优化</h2><p>InnoDB的行锁是针对索引加的锁，不是针对记录加的锁 ,并且该索引不能失效，否则会从行锁升级为表锁 。</p>
+<p>所以你updat where id = 1，就只锁id=1一行，你要是where name = ‘java’,而且你name字段没有索引，那就锁整个表，导致其他来这个表处理业务的线程阻塞，等你释放锁，导致性能下降。</p>
+<p>所以，<strong>update更新数据时要根据有索引的字段进行更新。</strong></p>
+<h1 id="视图"><a href="#视图" class="headerlink" title="视图"></a><strong>视图</strong></h1><p>视图（View）是一种虚拟存在的表。视图中的数据并不在数据库中实际存在，行和列数据来自定义视</p>
+<p>图的查询中使用的表，并且是在使用视图时动态生成的。</p>
+<p>通俗的讲，视图只保存了查询的SQL逻辑，不保存查询结果。所以我们在创建视图的时候，主要的工作</p>
+<p>就落在创建这条SQL查询语句上。</p>
+<h1 id="存储过程"><a href="#存储过程" class="headerlink" title="存储过程"></a><strong>存储过程</strong></h1><p>存储过程是事先经过编译并存储在数据库中的一段 SQL 语句的集合，调用存储过程可以简化应用开发</p>
+<p>人员的很多工作，减少数据在数据库和应用服务器之间的传输，对于提高数据处理的效率是有好处的。</p>
+<p>存储过程思想上很简单，就是数据库 SQL 语言层面的代码封装与重用。</p>
+<p>特点: </p>
+<ul>
+<li><p>封装，复用 ———————–&gt; 可以把某一业务SQL封装在存储过程中，需要用到的时候直接调用即可。</p>
+</li>
+<li><p>可以接收参数，也可以返回数据 ——–&gt; 再存储过程中，可以传递参数，也可以接收返回值。</p>
+</li>
+<li><p>减少网络交互，效率提升 ————-&gt; 如果涉及到多条SQL，每执行一次都是一次网络传输。 而如果封装在存储过程中，我们只需要网络交互一次可能就可以了。</p>
+</li>
+</ul>
+<h1 id="触发器"><a href="#触发器" class="headerlink" title="触发器"></a><strong>触发器</strong></h1><p>触发器是与表有关的数据库对象，指在insert/update/delete之前(BEFORE)或之后(AFTER)，触发并执行触发器中定义的SQL语句集合。触发器的这种特性可以协助应用在数据库端确保数据的完整性, 日志记录 , 数据校验等操作。使用别名OLD和NEW来引用触发器中发生变化的记录内容，这与其他的数据库是相似的。现在触发器还只支持行级触发，不支持语句级触发。</p>
+<p><img src="img/image-20220524001547402.png" alt="image-20220524001547402"></p>
+<blockquote>
+<p>DQL   data query  languauge ，数据查询语言：select系列</p>
+<p>DDL  data definition language, 数据定义语言 ：对数据库对象（表，视图，存储过程，触发器，索引）的增，删，改</p>
+<p>DML  data mainpulation language，数据操纵语言：对数据的 增，删，改</p>
+<p>DCL   data control languauge ，数据权限控制语言</p>
+</blockquote>
+<h1 id="锁"><a href="#锁" class="headerlink" title="锁"></a>锁</h1><h2 id="全局锁"><a href="#全局锁" class="headerlink" title="全局锁"></a>全局锁</h2><p>全局锁就是对整个数据库实例加锁，加锁后整个实例就处于只读状态，后续的DML的写语句，DDL语句，已经更新操作的事务提交语句都将被阻塞。</p>
+<p>其典型的使用场景是做<strong>全库的逻辑备份</strong>，对所有的表进行锁定，从而获取一致性视图，保证数据的完整性。</p>
+<p><img src="img/image-20220524205527096.png" alt="image-20220524205527096"></p>
+<p>数据库中加全局锁，是一个比较重的操作，存在以下问题：</p>
+<ul>
+<li><p>如果在主库上备份，那么在备份期间都不能执行更新，业务基本上就得停摆。</p>
+</li>
+<li><p>如果在从库上备份，那么在备份期间从库不能执行主库同步过来的二进制日志（binlog），会导致主从延迟。</p>
+</li>
+</ul>
+<p>在InnoDB引擎中，我们可以在备份时加上参数 <code>--single-transaction 参</code>数来完成不加锁的一致性数据备份。</p>
+<p><code>mysqldump --single-transaction -uroot –p123456 itcast &gt; itcast.sql </code></p>
+<p>底层通过 快照读 实现。</p>
+<h2 id="表级锁"><a href="#表级锁" class="headerlink" title="表级锁"></a>表级锁</h2><p>表级锁，每次操作锁住整张表。锁定粒度大，发生锁冲突的概率最高，并发度最低。应用在MyISAM、InnoDB、BDB等存储引擎中。</p>
+<p>对于表级锁，主要分为以下三类：</p>
+<ul>
+<li><p>表锁</p>
+</li>
+<li><p>元数据锁（meta data lock，MDL）</p>
+</li>
+<li><p>意向锁</p>
+</li>
+</ul>
+<h3 id="表锁"><a href="#表锁" class="headerlink" title="表锁"></a>表锁</h3><p>表锁分为两类：</p>
+<ol>
+<li>表共享读锁（read lock）</li>
+<li>表独占写锁（write lock）</li>
+</ol>
+<p>语法：</p>
+<p>加锁：lock tables 表名… read/write。</p>
+<p>释放锁：unlock tables / 客户端断开连接 。</p>
+<p>读锁特点：客户端a对表加了读锁，所有客户端都可以读此表，所有客户端都不能进行写操作。</p>
+<p><img src="img/image-20220524210536295.png" alt="image-20220524210536295"></p>
+<p>写锁特点：客户端a对表加了写锁，只有客户端a都可以读、写此表，其他客户端都不能进行读、写操作。</p>
+<p><img src="img/image-20220524210546114.png" alt="image-20220524210546114"></p>
+<h3 id="元数据锁"><a href="#元数据锁" class="headerlink" title="元数据锁"></a>元数据锁</h3><p>meta data lock , 元数据锁，简写MDL。</p>
+<p>MDL加锁过程是系统自动控制，无需显式使用，在访问一张表的时候会自动加上。MDL锁主要作用是维护表元数据的数据一致性，在表上有活动事务的时候，不可以对元数据进行写入操作。为了避免DML与DDL冲突，保证读写的正确性。</p>
+<p>这里的元数据，大家可以简单理解为就是一张表的表结构。 </p>
+<p>也就是说，某一张表涉及到未提交的事务时，是不能够修改这张表的表结构的。</p>
+<p>在MySQL5.5中引入了MDL，当对一张表进行增删改查的时候，加MDL读锁(共享)；</p>
+<p>当对表结构进行变更操作的时候，加MDL写锁(排他)。</p>
+<p>常见的SQL操作时，所添加的元数据锁：</p>
+<p><img src="img/image-20220524211155229.png" alt="image-20220524211155229">也就是说执行蓝框里的sql会加对应的元数据锁，这个锁锁的是表结构，所有蓝框那些增删查改所加的元数据锁都是兼容的，但是执行红框里的修改表结构alter语句时加的EXCLUSIVE锁会与其他元数据锁互斥，也就是说如果别的客户端或事务在执行蓝框的语句还没提交，你这时候是无法执行红框alter语句去修改表结构的。</p>
+<p>这个不难理解，别人在用表，你肯定不能把表结构改了啊。（比如别人正在查分数，你把分数字段删了，或者增加一个新的评级字段这样肯定是不行的。）</p>
+<p><img src="img/image-20220524211711875.png" alt="image-20220524211711875"></p>
+<h3 id="意向锁"><a href="#意向锁" class="headerlink" title="意向锁"></a>意向锁</h3><p>为了避免DML在执行时，加的行锁与表锁的冲突，在InnoDB中引入了意向锁，使得表锁不用检查每行数据是否加锁，使用意向锁来减少表锁的检查。</p>
+<p>作为一个标志，快速判断此表是否有行锁。</p>
+<p><img src="img/image-20220524214402649.png" alt="image-20220524214402649"></p>
+<p><img src="img/image-20220524214430074.png" alt="image-20220524214430074"></p>
+<p><img src="img/image-20220524214451416.png" alt="image-20220524214451416"></p>
+<p>总而言之，就是你update某一行，会给这一行加行锁，并且也会对<strong>此行所在表</strong>加一个意向锁，这样别的客户端来对这个表加表锁就不用逐一查看每一行是否有行锁了，直接查看此表是否被加<strong>互斥的意向锁</strong>。</p>
+<p>意向锁有两种：</p>
+<ul>
+<li><p>意向共享锁(IS): 由语句select … lock in share mode添加 。 与 表锁共享锁(read)兼容，与表锁排他锁(write)互斥。</p>
+</li>
+<li><p>意向排他锁(IX): 由insert、update、delete、select…for update添加 。与表锁共享锁(read)及排他锁(write)都互斥，意向锁之间不会互斥。</p>
+</li>
+</ul>
+<p>一旦事务提交了，意向共享锁、意向排他锁，都会自动释放。</p>
+<p>可以通过以下SQL，查看意向锁及行锁的加锁情况：</p>
+<p><code>select object_schema,object_name,index_name,lock_type,lock_mode,lock_data from performance_schema.data_locks; </code></p>
+<h2 id="行级锁"><a href="#行级锁" class="headerlink" title="行级锁"></a>行级锁</h2><p>行级锁，每次操作锁住对应的行数据。锁定粒度最小，发生锁冲突的概率最低，并发度最高。应用在InnoDB存储引擎中。</p>
+<p>InnoDB的数据是基于索引组织的，<strong>行锁是通过对索引上的索引项加锁来实现的，而不是对记录加的锁。</strong></p>
+<p>对于行级锁，主要分为以下三类：</p>
+<p><img src="img/image-20220524215040250.png" alt="image-20220524215040250"></p>
+<p><img src="img/image-20220524235507733.png" alt="image-20220524235507733"></p>
+<p>行锁，间隙锁，临键锁</p>
+<h3 id="行锁"><a href="#行锁" class="headerlink" title="行锁"></a>行锁</h3><p>行锁又分为：</p>
+<ul>
+<li><p>共享锁（S）：允许一个事务去读一行，阻止其他事务获得相同数据集的排它锁，但是共享锁可以。</p>
+</li>
+<li><p>排他锁（X）：允许获取排他锁的事务更新数据，阻止其他事务获得相同数据集的共享锁和排他锁。</p>
+</li>
+</ul>
+<p><img src="img/image-20220524235755060.png" alt="image-20220524235755060"></p>
+<p>也就是说客户端a加了共享锁，客户端b只能加共享锁，不能加排他锁。</p>
+<p>如果客户端a加了排他锁，客户端b什么都不能加。</p>
+<p><img src="img/image-20220524235908496.png" alt="image-20220524235908496"></p>
+<p>默认情况下，InnoDB在 REPEATABLE READ事务隔离级别运行，InnoDB使用 <strong>next-key 锁</strong>进行搜索和索引扫描，以防止幻读。</p>
+<ul>
+<li><p><strong>针对唯一索引进行检索时，对已存在的记录进行等值匹配时</strong>，将会自动优化为行锁。</p>
+</li>
+<li><p>InnoDB的行锁是<strong>针对于索引加的锁</strong>，<strong>不通过索引条件检索数据</strong>，那么InnoDB将对表中的所有记录加锁，此时 就会升级为表锁。（<strong>因为你没有索引没法加行锁，又要保证安全，只能上表锁</strong>）</p>
+</li>
+</ul>
+<blockquote>
+<p>在客户端一中，开启事务，并执行update语句，更新name为Lily的数据，也就是id为19的记录 。</p>
+<p>然后在客户端二中更新id为3的记录，却不能直接执行，会处于阻塞状态，为什么呢？</p>
+<p>原因就是因为此时，客户端一，根据name字段进行更新时，name字段是没有索引的，如果没有索引，</p>
+<p>此时行锁会升级为表锁(因为行锁是对索引项加的锁，而name没有索引)。</p>
+<p>接下来，我们再针对name字段建立索引，索引建立之后，再次做一个测试：</p>
+<p>此时我们可以看到，客户端一，开启事务，然后依然是根据name进行更新。而客户端二，在更新id为3</p>
+<p>的数据时，更新成功，并未进入阻塞状态。 这样就说明，我们根据索引字段进行更新操作，就可以<strong>避</strong></p>
+<p><strong>免行锁升级为表锁</strong>的情况。</p>
+</blockquote>
+<h3 id="间隙锁"><a href="#间隙锁" class="headerlink" title="间隙锁"></a>间隙锁</h3><p>默认情况下，InnoDB在 REPEATABLE READ事务隔离级别运行，InnoDB使用 next-key 临键锁进行搜索和索引扫描，以防止幻读。</p>
+<ul>
+<li>索引上的等值查询(唯一索引)，给不存在的记录加锁时, 优化为间隙锁 。</li>
+</ul>
+<blockquote>
+<p>唯一索引id，1,2,5,8,10。</p>
+<p>你去查询 where id = 6；他就会给1-8之间加间隙锁。</p>
+<p>防止你再插入id=6导致幻读</p>
+</blockquote>
+<ul>
+<li>索引上的等值查询(非唯一普通索引)，向右遍历时最后一个值不满足查询需求时，间隙锁退化为next-key lock 。</li>
+</ul>
+<blockquote>
+<p>非唯一索引id，1,2,4,6,6,10.</p>
+<p>你去查询where id =6；就会给1-10加间隙锁。</p>
+<p>防止你再删除id=6导致幻读</p>
+</blockquote>
+<p>间隙锁唯一目的就是防止其他事物插入间隙。间隙锁可以共存，一个事物在一个间隙上采用间隙锁不会影响另外一个事务在同样地方采用间隙锁。</p>
+<h3 id="临键锁"><a href="#临键锁" class="headerlink" title="临键锁"></a>临键锁</h3><ul>
+<li>索引上的范围查询(唯一索引)–会访问到不满足条件的第一个值为止。</li>
+</ul>
+<blockquote>
+<p>唯一索引id，1,2,5,15,18,19,25,30</p>
+<p>查询的条件为id&gt;=19，并添加共享锁。 此时我们可以根据数据库表中现有的数据，将数据分为三个部</p>
+<p>分：</p>
+<p>[19]</p>
+<p>(19,25]</p>
+<p>(25,+∞]</p>
+<p>所以数据库数据在加锁是，就是将19加了行锁，25的临键锁（包含25及25之前的间隙），正无穷的临</p>
+<p>键锁(正无穷及之前的间隙)。</p>
+</blockquote>
+<p>不难理解，如果你不给正无穷加临键锁，那你后面可能继续继续insert &gt;= 19的数据，导致查询不一致，幻读</p>
+<h2 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h2><p>首先要明确几个概念：</p>
+<p>行级锁加锁规则比较复杂，不同的场景，加锁的形式还不同。</p>
+<p>记录的意思就是你用navicat看到的一行数据，一行就是一个记录。</p>
+<p>行锁，记录锁，Record Lock</p>
+<p>间隙锁，Gap Lock</p>
+<p>临键锁，next-key-lock</p>
+<p>对记录加锁时，加锁的基本单位是 next-key lock，也就是所谓的临键锁，它是由记录锁和间隙锁组合而成的，next-key lock 是前开后闭区间，而间隙锁是前开后开区间。</p>
+<p>但是，next-key lock 在一些场景下会退化成记录锁或间隙锁。</p>
+<p>也就是说 只要加行级锁，先加 临键锁，然后根据情况 退化为 记录or间隙锁。</p>
+<p>下面举例验证一下</p>
+<p><img src="img/image-20220809141619872.png" alt="image-20220809141619872"></p>
+<p>上面这个表，id是主键，自带聚集索引，a是普通的列，b是普通的列，但是创建了非唯一索引</p>
+<p>主要分为四个维度去分析：</p>
+<ul>
+<li>唯一索引，等值查询</li>
+<li>唯一索引，范围查询</li>
+<li>非唯一索引，等值查询</li>
+<li>非唯一索引，范围查询</li>
+</ul>
+<p>还有是否查的到数据加锁规则也不一样，接下来细说</p>
+<p>id：0, 4, 8, 16, 32</p>
+<p><strong>唯一索引，等值查询</strong></p>
+<p>先说结论：</p>
+<ul>
+<li>当查询的记录是<strong>存在</strong>的，先加 next-key lock，next-key lock 会退化成<strong>「记录锁」</strong>。</li>
+<li>当查询的记录是<strong>不存在</strong>的，先加 next-key lock，next-key lock 会退化成<strong>「间隙锁」</strong>。</li>
+</ul>
+<p>所以当一个事务select where id = 16 for update时，先上临键锁，左开右闭，（8,16] ，但是由于数据存在，所以退化为记录锁，只会锁16这一行记录。这个时候别的事务来update id =16会被阻塞</p>
+<p>而当一个事务select where id = 10 for update时，先上临键锁，左开右闭，(8,16]，但是由于数据不存在退化为间隙锁，左右都开，（8,16），锁区间。这个时候别的事务去updat where id = 16可以执行，但是insert id = 15会被阻塞。</p>
+<p>id：0, 4, 8, 16, 32</p>
+<p><strong>唯一索引，范围查询</strong></p>
+<p>select  where id=8 for update;  只加记录锁。<br>select  where id&gt;=8 and id&lt;9 for update;  加锁[8，16）。</p>
+<p>最开始要找的第一行是 id = 8，因此 next-key lock(4,8]，但是由于 id 是唯一索引，且该记录是存在的，因此会退化成记录锁，也就是只会对 id = 8 这一行加锁；<br>由于是范围查找，就会继续往后找存在的记录，也就是会找到8后面的数据 id = 16 来进行判断，因为16&gt;9所以会在这一行停下来，然后加 next-key lock (8, 16]，（这里加深理解一下InnoDB加锁基本单位是临键锁，不只要加行锁先上临键锁，然后根据情况退化）然后还是因为你查的是8到9，这边远超了，秉着往最小锁区间发展，这里会退化成间隙锁，加锁范围变为 (8, 16)。<br>所以，此事务执行这个sql后主键索引的锁是记录锁 id=8 和间隙锁(8, 16)。</p>
+<p>b：0, 4, 8, 16, 32</p>
+<p><strong>非唯一索引，等值查询</strong></p>
+<ul>
+<li>当查询的记录存在时，除了会加 next-key lock 外，还额外加间隙锁，也就是会加两把锁。</li>
+<li>当查询的记录不存在时，只会加 next-key lock，然后会退化为间隙锁，也就是只会加一把锁。</li>
+</ul>
+<p>比如你select where b = 8 for update；</p>
+<ol>
+<li>先会对普通索引 b 加上 next-key lock，范围是(4,8];</li>
+<li>然后因为是非唯一索引，且查询的记录是存在的，所以还会加上间隙锁，规则是向下遍历到第一个不符合条件的值才能停止，因此间隙锁的范围是(8,16)。</li>
+</ol>
+<p>所以最终加锁范围就是，（4,16）。</p>
+<p>记住，<strong>非唯一索引，等值查询</strong>能查到的情况下 加两把锁，一把临键一把间隙，最终相当于一个大间隙锁。</p>
+<p>比如你select where b = 5 for update；</p>
+<p>这时数据不存在，就只加一把锁，临键锁（4,8]，并退化为（4,8）间隙锁。</p>
+<p><strong>非唯一索引，范围查询</strong></p>
+<p>select  where b&gt;=8 and b&lt;9 for update;</p>
+<p>跟上面唯一索引大致一样，唯一区别是不会退化为间隙锁，也就是先加next-key lock(4,8]，再加next-key lock(8,16]。</p>
+<p>唯一索引等值查询：</p>
+<p>当查询的记录是存在的，next-key lock 会退化成「记录锁」。<br>当查询的记录是不存在的，next-key lock 会退化成「间隙锁」。</p>
+<p>非唯一索引等值查询：</p>
+<p>当查询的记录存在时，除了会加 next-key lock 外，还额外再加一把next-key lock锁，也就是会加两把锁，而且第二把next-key lock会退化为间隙锁，最后组成一个大间隙锁。<br>当查询的记录不存在时，只会加 next-key lock，然后会退化为间隙锁，也就是只会加一把锁，锁住你查询那个不存在的数据两边的间隙。</p>
+<p>非唯一索引和主键索引的范围查询的加锁规则不同之处在于：</p>
+<p>唯一索引在满足一些条件的时候，next-key lock 退化为间隙锁和记录锁。<br>非唯一索引范围查询，next-key lock 不会退化为间隙锁和记录锁。</p>
+<p>这就是rr级别下，<strong>当前读</strong>（也就是 select for update）如何 解决了幻读。通过加锁解决。这都属于悲观锁。</p>
+<p>而非for update查询可以通过mvcc实现的乐观锁用可见性算法解决   <strong>快照读</strong> 下  的 幻读问题。</p>
+<blockquote>
+<p>加锁具体案例看上面的，这里不写了。理解一下，就是保证安全的最小范围锁住</p>
+</blockquote>
+<h1 id="事务"><a href="#事务" class="headerlink" title="事务"></a>事务</h1><p>事务 是一组操作的集合，它是一个不可分割的工作单位，事务会把所有的操作作为一个整体一起向系统提交或撤销操作请求，即这些操作要么同时成功，要么同时失败。</p>
+<h2 id="隔离级别"><a href="#隔离级别" class="headerlink" title="隔离级别"></a>隔离级别</h2><table>
+<thead>
+<tr>
+<th align="left">隔离级别</th>
+<th align="left">脏读</th>
+<th>不可重复度</th>
+<th>幻读</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">read uncommitted</td>
+<td align="left">√会发生</td>
+<td>√</td>
+<td>√</td>
+</tr>
+<tr>
+<td align="left">read committed（ORACLE默认）</td>
+<td align="left">×不会发生</td>
+<td>√</td>
+<td>√</td>
+</tr>
+<tr>
+<td align="left">repeatable read（MySQL默认）</td>
+<td align="left">×</td>
+<td>×</td>
+<td>√</td>
+</tr>
+<tr>
+<td align="left">serializable</td>
+<td align="left">×</td>
+<td>×</td>
+<td>×</td>
+</tr>
+</tbody></table>
+<p>脏读：同一个事务内，第二次相同查询读到 别的 事务 <strong>执行</strong>过的的 update、delete</p>
+<p>不可重复读：同一个事务内，第二次相同查询读到 别的 事务 <strong>commit</strong>的 update、delete</p>
+<p>幻读：同一个事务内，第二次相同查询读到 别的 事务 <strong>commit</strong>的insert语句</p>
+<p>事务四大特性：</p>
+<p>ACID，不多说了</p>
+<p>研究事务原理就是研究InnoDB是如何保证这四大特性的。</p>
+<p><img src="img/image-20220526144836491.png" alt="image-20220526144836491"></p>
+<h2 id="redo-log"><a href="#redo-log" class="headerlink" title="redo log"></a>redo log</h2><blockquote>
+<p>我们知道，在InnoDB引擎中的内存结构中，主要的内存区域就是缓冲池，在缓冲池中缓存了很多的数</p>
+<p>据页。 当我们在一个事务中，执行多个增删改的操作时，InnoDB引擎会先操作缓冲池中的数据，如果</p>
+<p>缓冲区没有对应的数据，会通过后台线程将磁盘中的数据加载出来，存放在缓冲区中，然后将缓冲池中</p>
+<p>的数据修改，修改后的数据页我们称为脏页。 而脏页则会在一定的时机，通过后台线程刷新到磁盘</p>
+<p>中，从而保证缓冲区与磁盘的数据一致。 而缓冲区的脏页数据并不是实时刷新的，而是一段时间之后</p>
+<p>将缓冲区的数据刷新到磁盘中，假如刷新到磁盘的过程出错了，而提示给用户事务提交成功，而数据却</p>
+<p>没有持久化下来，这就出现问题了，没有保证事务的持久性。</p>
+</blockquote>
+<p><img src="img/image-20220526145416134.png" alt="image-20220526145416134"></p>
+<p>为什么不先5再4呢？</p>
+<p>（那为什么每一次提交事务，要刷新redo log 到磁盘，而不是直接将buffer pool中的脏页数据刷新到磁盘呢 ?）</p>
+<p>因为在业务操作中，我们操作数据一般都是<strong>随机读写磁盘</strong>的，而不是顺序读写磁盘。 而redo log在往磁盘文件中写入数据，由于是<strong>日志文件，所以都是顺序写</strong>的。<strong>顺序写的效率，要远大于随机写。</strong> 这种先写日志的方式，称之为 <strong>WAL</strong>（Write-Ahead Logging）。</p>
+<p>磁盘的交互，io非常慢，乱序io更慢，日志是追加的顺序io更快。</p>
+<h2 id="undo-log"><a href="#undo-log" class="headerlink" title="undo log"></a>undo log</h2><p>回滚日志，用于记录数据被修改前的信息 , 两个作用 : 提供回滚(保证事务的原子性) 和MVCC(多版本并发控制) 。</p>
+<p>undo log和redo log记录物理日志（字段实际数据信息）不一样，它是逻辑日志（sql语句）。</p>
+<p>可以认为当delete一条记录时，undolog中会记录一条对应的insert记录，反之亦然，当update一条记录时，它记录一条对应相反的update记录。当执行rollback时，就可以从undo log中的逻辑记录读取到相应的内容并进行回滚。</p>
+<p>Undo log销毁：undo log在事务执行时产生，事务提交时，并不会立即删除undo log，因为这些日志可能还用于MVCC。</p>
+<p>Undo log存储：undo log采用<strong>段</strong>的方式进行管理和记录，存放在前面介绍的 <strong>rollback segment回滚段</strong>中，内部包含1024个undo log segment。 </p>
+<h2 id="bin-log"><a href="#bin-log" class="headerlink" title="bin log"></a>bin log</h2><p>存在于service层，可以被各种引擎用，上面的两个日志是InnoDB独有的</p>
+<p>也是逻辑日志，记录ddl和dml语句的</p>
+<p>两个作用：</p>
+<ol>
+<li>主从同步</li>
+<li>数据恢复</li>
+</ol>
+<p>主机 有个log dump thread生成，发送bin log给从机，从机有一个io thread接收并那容重写进一个relay log，然后sql thread吧日志重放，就同步了</p>
+<p><strong>bin log和redo log区别</strong></p>
+<p>bin log记录逻辑日志，也就是sql。redo log记录物理日志，也就是数据。</p>
+<p>redo log有大小限制，环状，写完就覆盖了，所以只能作用 于 崩溃恢复，数据库崩溃了，马上重启了用这redolog恢复。</p>
+<p>binlog 追加写入，无大小限制，比如有人删库跑路了，你可以把上次全量备份数据导入，并找到上次全量备份后开始的bin log 删去最后一条drop 所有表的sql，然后重放一遍就恢复数据了。当然，太大也没法重放</p>
+<h2 id="mvcc"><a href="#mvcc" class="headerlink" title="mvcc"></a>mvcc</h2><p>全称 Multi-Version Concurrency Control，多版本并发控制。指维护一个数据的多个版本，使得读写操作没有冲突，快照读为MySQL实现MVCC提供了一个非阻塞读功能。</p>
+<blockquote>
+<p><strong>多版本并发控制</strong>: 指的是一种提高并发的技术。</p>
+<p>最早的数据库系统，<strong>只有读读之间可以并发，读写，写读，写写都要阻塞</strong>。</p>
+<p>引入多版本之后，<strong>只有写写之间相互阻塞，其他三种操作都可以并行</strong>，这样大幅度提高了InnoDB的并发度。</p>
+<p>在内部实现中，与Postgres在数据行上实现多版本不同，InnoDB是在undolog中实现的，通过undolog可以找回数据的历史版本。找回的数据历史版本可以提供给用户读(按照隔离级别的定义，有些读请求只能看到比较老的数据版本)，也可以在回滚的时候覆盖数据页上的数据。</p>
+<p>在InnoDB内部中，会记录一个全局的活跃读写事务数组（read view），其主要用来判断事务的可见性。</p>
+</blockquote>
+<blockquote>
+<p>&lt;高性能MySQL&gt;中对MVCC的部分介绍</p>
+<ul>
+<li>MySQL的大多数事务型存储引擎实现的其实都不是简单的行级锁。<strong>基于提升并发性能的考虑</strong>, 它们一般都同时实现了多版本并发控制(MVCC)。不仅是MySQL, 包括Oracle,PostgreSQL等其他数据库系统也都实现了MVCC, 但各自的实现机制不尽相同, 因为MVCC没有一个统一的实现标准。</li>
+<li>可以认为MVCC是行级锁的一个变种, 但是它在很多情况下避免了加锁操作, 因此开销更低。虽然实现机制有所不同, 但大都实现了非阻塞的读操作，写操作也只锁定必要的行。</li>
+<li>MVCC的实现方式有多种, 典型的有乐观(optimistic)并发控制 和 悲观(pessimistic)并发控制。</li>
+<li>MVCC只在 <code>READ COMMITTED</code> 和 <code>REPEATABLE READ</code> 两个隔离级别下工作。其他两个隔离级别够和MVCC不兼容, 因为 <code>READ UNCOMMITTED</code> 总是读取最新的数据行, 而不是符合当前事务版本的数据行。而 <code>SERIALIZABLE</code> 则会对所有读取的行都加锁。</li>
+</ul>
+</blockquote>
+<p>了解mvcc需要先了解几个概念：</p>
+<h3 id="当前读"><a href="#当前读" class="headerlink" title="当前读"></a>当前读</h3><p>读取的是记录的最新版本，读取时还要保证其他并发事务不能修改当前记录，会对读取的记录进行加锁。</p>
+<p>对于我们日常的操作，如：select … lock in share mode(共享锁)，select …for update、update、insert、delete(排他锁)都是一种当前读。</p>
+<p>测试：</p>
+<table>
+<thead>
+<tr>
+<th>时间线</th>
+<th>事务A</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>begin</td>
+<td>begin</td>
+</tr>
+<tr>
+<td>1</td>
+<td>select … where id =1 lock in share mode</td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td></td>
+<td>update where id =1</td>
+</tr>
+<tr>
+<td>3</td>
+<td></td>
+<td>commit</td>
+</tr>
+<tr>
+<td>4</td>
+<td>select … where id =1 lock in share mode</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>在测试中我们可以看到，即使是在默认的RR隔离级别下，事务A中依然可以读取到事务B最新提交的内</p>
+<p>容，因为在查询语句后面加上了 lock in share mode 共享锁，此时是当前读操作。当然，当我们</p>
+<p>加排他锁的时候，也是当前读操作。</p>
+<h3 id="快照读"><a href="#快照读" class="headerlink" title="快照读"></a>快照读</h3><p>简单的select（不加锁）就是快照读，快照读，读取的是记录数据的可见版本，有可能是历史数据，</p>
+<p>不加锁，是非阻塞读。</p>
+<p>• Read Committed：每次select，都生成一个快照读。</p>
+<p>• Repeatable Read：开启事务后第一个select语句才是快照读的地方。</p>
+<p>• Serializable：快照读会退化为当前读。</p>
+<p>测试:</p>
+<table>
+<thead>
+<tr>
+<th>时间线</th>
+<th>事务A</th>
+<th>事务B</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>begin</td>
+<td>begin</td>
+</tr>
+<tr>
+<td>1</td>
+<td>select … where id =1</td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td></td>
+<td>update where id =1</td>
+</tr>
+<tr>
+<td>3</td>
+<td></td>
+<td>commit</td>
+</tr>
+<tr>
+<td>4</td>
+<td>select … where id =1</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>在测试中,我们看到即使事务B提交了数据,事务A中也查询不到。 原因就是因为普通的select是快照</p>
+<p>读，而在当前默认的RR隔离级别下，开启事务后<strong>第一个select语句才是快照读</strong>的地方，后面执行相同</p>
+<p>的select语句都是从快照中获取数据，可能不是当前的最新数据，这样也就<strong>保证了可重复读</strong>。</p>
+<p>MVCC的具体实现，还需要依赖于数据库记录中的三个隐式字段、undo log日志、readView。</p>
+<p>接下来，我们再来介绍一下InnoDB引擎的表中涉及到的隐藏字段 、undolog 以及 readview，从</p>
+<p>而来介绍一下MVCC的原理。</p>
+<h3 id="隐藏字段"><a href="#隐藏字段" class="headerlink" title="隐藏字段"></a>隐藏字段</h3><p><img src="img/image-20220526151613182.png" alt="image-20220526151613182"></p>
+<p><strong>undolog</strong></p>
+<p>回滚日志，在insert、update、delete的时候产生的便于数据回滚的日志。</p>
+<p>当insert的时候，产生的undo log日志只在回滚时需要，在事务提交后，可被立即删除。 </p>
+<p>而update、delete的时候，产生的undo log日志不仅在回滚时需要，在快照读时也需要，不会立即被删除。</p>
+<h3 id="版本链"><a href="#版本链" class="headerlink" title="版本链"></a>版本链</h3><p><img src="img/image-20220526152817702.png" alt="image-20220526152817702"></p>
+<p>不同事务或相同事务对同一条记录进行修改，会导致该记录的undolog生成一条记录版本链表，链表的头部是最新的旧记录，链表尾部是最早的旧记录。事务id递增</p>
+<p>对了，undolog是逻辑日志，记录反向sql，这里形象一点，图里写的是数据</p>
+<h3 id="read-view"><a href="#read-view" class="headerlink" title="read view"></a>read view</h3><p>ReadView（读视图）是 快照读 SQL执行时MVCC提取数据的依据，记录并维护系统当前活跃的事务（未提交的）id。</p>
+<p>ReadView中包含了四个核心字段：</p>
+<p><img src="img/image-20220526153014534.png" alt="image-20220526153014534"></p>
+<p>而在readview中就规定了版本链数据的访问规则：</p>
+<p>可见性比较算法，</p>
+<p>trx_id 代表当前undolog版本链对应事务ID。事务id自增。</p>
+<p><img src="img/image-20220526153034569.png" alt="image-20220526153034569"></p>
+<p>不同的隔离级别，生成ReadView的时机不同：</p>
+<ul>
+<li><p>READ COMMITTED ：在事务中每一次执行快照读时生成ReadView。</p>
+</li>
+<li><p>REPEATABLE READ：仅在事务中第一次执行快照读时生成ReadView，后续复用该ReadView。</p>
+</li>
+</ul>
+<p>RC隔离级别</p>
+<p>RC隔离级别下，在事务中每一次执行快照读时生成ReadView。</p>
+<p><img src="img/image-20220526153258355.png" alt="image-20220526153258355"></p>
+<p>下面这张图是总结起来的，不难理解，如果事务3已经提交，那么最小活动事务id就变4了，此时修改记录里的事务id也是4，第一轮4去比对都失败，根据ptr去undo log找到事务id为3那条数据，拿3去比符合第二条，3&lt;当前最小活动事务id，说明3已经提交，与是读取这条数据，<strong>这不就是read commit rc 读已提交吗？</strong></p>
+<p><img src="img/image-20220526152731986.png" alt="image-20220526152731986"></p>
+<p> RR隔离级别</p>
+<p>RR隔离级别下，仅在事务中第一次执行快照读时生成ReadView，后续复用该ReadView。 而RR 是可重复读，在一个事务中，执行两次相同的select语句，查询到的结果是一样的。</p>
+<p>那MySQL是如何做到可重复读的呢? 我们简单分析一下就知道了</p>
+<p><img src="img/image-20220526153901239.png" alt="image-20220526153901239"></p>
+<p>不难看出，因为readview一样（此read view是此事务第一次select时创建的），那么同一个事务 内 去多次seclet读取数据，用的readview都一样，读取的数据版本肯定一样，数据也肯定一样，<strong>这不就是repeatable read rr 可重复读吗？</strong></p>
+<p>总的来说：</p>
+<p>一个事务去访问记录的时候，除了自己的更新记录总是可见之外，还有这几种情况：</p>
+<ul>
+<li>如果记录的 trx_id 值小于 Read View 中的 <code>min_trx_id</code> 值，表示这个版本的记录是在创建 Read View <strong>前</strong>已经提交的事务生成的，所以该版本的记录对当前事务<strong>可见</strong>。</li>
+<li>如果记录的 trx_id 值大于等于 Read View 中的 <code>max_trx_id</code> 值，表示这个版本的记录是在创建 Read View <strong>后</strong>才启动的事务生成的，所以该版本的记录对当前事务<strong>不可见</strong>。</li>
+<li>如果记录的 trx_id 值在 Read View 的min_trx_id和max_trx_id之间，需要判断 trx_id 是否在 m_ids 列表中：<ul>
+<li>如果记录的 trx_id <strong>在</strong> <code>m_ids</code> 列表中，表示生成该版本记录的活跃事务依然活跃着（还没提交事务），所以该版本的记录对当前事务<strong>不可见</strong>。</li>
+<li>如果记录的 trx_id <strong>不在</strong> <code>m_ids</code>列表中，表示生成该版本记录的活跃事务已经被提交，所以该版本的记录对当前事务<strong>可见</strong>。</li>
+</ul>
+</li>
+</ul>
+<h3 id="Read-Commit级别是如何解决脏读的？"><a href="#Read-Commit级别是如何解决脏读的？" class="headerlink" title="Read Commit级别是如何解决脏读的？"></a>Read Commit级别是如何解决脏读的？</h3><p>先说结论：<strong>通过改变锁的释放时机来解决脏读问题</strong>。</p>
+<p>首先先了解一下为什么会出现脏读？原因就是在<code>未提交读</code>这个级别下，<strong>当事务A修改了数据之后就立马释放了锁</strong>，因此事务B可以读取到这个未提交的数据。</p>
+<p>在<code>已提交读</code>级别下<strong>写操作加的锁会到事务提交后释放</strong>，所以事务B不会读到事务A未提交的数据，通过改变锁的释放时机解决了脏读的问题。</p>
+<p>Read Repeatable级别是如何解决不可重复读的？</p>
+<p>结论：<code>可重复读</code>级别就是通过<code>MVCC</code>机制来解决不可重复读问题的</p>
+<p><code>MVCC机制(多版本并发控制)</code>就我个人理解来说其实就是给每行数据都添加了几个隐藏字段，用来表示数据的版本号，即<strong>一个数据在mysql中会有多个不同的版本</strong>。</p>
+<blockquote>
+<p>MVCC就是给每一行都都有个事务版本号，假设一条链表第一个节点是最新的数据，越后数据越旧，当有一个快照读操作过来后，会遍历链表，按照 <strong>可见性算法</strong> 找到第一个允许当前事务可见的数据。</p>
+<p>普通乐观锁就是加版本号比大小，mvcc也算是乐观锁的一种实现吧，不是单纯的拿版本号比大小，而是有一套算法去比。</p>
+</blockquote>
+<p>有了MVCC之后我们可以把SQL操作分为两类：</p>
+<ul>
+<li><strong>快照读</strong></li>
+</ul>
+<p>读取当前事务可见的数据，默认的select操作就是快照读，读的是历史版本的数据。</p>
+<ul>
+<li><strong>当前读</strong></li>
+</ul>
+<p>读取最新的数据，除了默认select操作外的<code>select..for update</code>、<code>update</code>、<code>insert</code>、<code>delete</code>等操作都是当前读，读取的都是最新的数据。</p>
+<p>现在我们有了MVCC，当事务A执行一个普通的<code>select操作(快照读)</code>,<strong>MySQL会把维护的事务的一个read view保存下来，事务A再次执行select操作 会根据可见性算法  保证 读取到的数据是没有被其他事务操作过的</strong>，因此通过<code>可重复读级别通过MVCC解决了不可重复读问题，顺便解决了部分的幻读问题</code>，没错<strong>MVCC并没有解决所有的幻读问题</strong>，只是解决了一部分，那是如何彻底解决幻读问题的呢？请接着往后看</p>
+<h3 id="加餐，如何解决幻读"><a href="#加餐，如何解决幻读" class="headerlink" title="加餐，如何解决幻读"></a>加餐，如何解决幻读</h3><p>我们知道，可重复读隔离级别下，解决了 脏读 和 不可重复度 的 ，但是无法完全解决幻读。</p>
+<p><img src="img/image-20220526160104120.png" alt="image-20220526160104120"></p>
+<p>从这个实验结果可以看到，即使事务 B 中途插入了一条记录，事务 A 前后两次查询的结果集都是一样的，并没有出现所谓的幻读现象。</p>
+<p>读者做的实验之所以看不到幻读现象，是因为<strong>在可重复读隔离级别下，普通的查询是快照读，是不会看到别的事务插入的数据的</strong>。</p>
+<p>可重复读隔离级是由 MVCC（多版本并发控制）实现的，实现的方式是启动事务后，在执行第一个查询语句后，会创建一个视图（readview）（在rr下才是这样，详细看下面），然后后续的查询语句都用这个视图，「快照读」读的就是这个视图的数据，视图你可以理解为版本数据，这样就使得每次查询的数据都是一样的。</p>
+<blockquote>
+<p>• Read Committed：每次select，都生成一个快照读。</p>
+<p>• Repeatable Read：开启事务后第一个select语句才是快照读的地方。</p>
+<p>• Serializable：快照读会退化为当前读。</p>
+</blockquote>
+<p>MySQL 里除了普通查询是快照度，其他都是<strong>当前读</strong>，比如update、insert、delete，这些语句执行前都会查询最新版本的数据，然后再做进一步的操作。</p>
+<p>这很好理解，假设你要 update 一个记录，另一个事务已经 delete 这条记录并且 提交事务了，这样不是会产生冲突吗，所以 update 的时候肯定要知道最新的数据。</p>
+<p>另外，<code>select ... for update</code> 这种查询语句是当前读，每次执行的时候都是读取最新的数据。</p>
+<p><strong>因此，要讨论「可重复读」隔离级别的幻读现象，是要建立在「当前读」的情况下。</strong></p>
+<blockquote>
+<p>前面所说的 解决了 部分幻读现象，就是解决  快照读 的 幻读问题的。</p>
+</blockquote>
+<p><img src="img/image-20220526160351511.png" alt="image-20220526160351511"></p>
+<p>这时候，事务 B 插入的记录，就会被事务 A 的第二条查询语句查询到（因为是当前读），这样就会出现前后两次查询的结果集合不一样，这就出现了幻读。</p>
+<p>所以，<strong>Innodb 引擎为了解决「可重复读」隔离级别使用「当前读」而造成的幻读问题，就引出了 next-key 临键锁</strong>，就是记录锁（行锁）和间隙锁的组合。</p>
+<ul>
+<li>记录锁（行锁），锁的是记录本身；</li>
+<li>间隙锁，锁的就是两个值之间的空隙，以防止其他事务在这个空隙间插入新的数据，从而避免幻读现象。</li>
+</ul>
+<p>比如，执行这条语句的时候，会锁住，然后期间如果有其他事务在这个锁住的范围插入数据就会被阻塞。</p>
+<p><img src="img/image-20220526160814115.png" alt="image-20220526160814115"></p>
+<p>这就避免了幻读。</p>
+<p>幻读只有最高隔离级别 serializable解决了，就是靠加临键锁，锁的粒度太大，这也导致性能降低。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>MVCC多版本控制的实现原理就是通过 InnoDB表的隐藏字段、UndoLog 版本链、ReadView来实现的。</p>
+<p>事务四大特性靠主要靠两份日志redo log 、 undo log和mvcc和锁保证：</p>
+<p>a原子性：undo log  </p>
+<blockquote>
+<p>回滚日志undolog保证了 要么全成功要么全失败</p>
+</blockquote>
+<p>c一致性：redo log + undo log</p>
+<blockquote>
+<p>重做，和回滚日志保证了 数据库 的数据和状态一定能恢复到最初，保证一致性。比如原来name是唯一字段，事务执行前后无论是否失败，name还得是唯一字段</p>
+</blockquote>
+<p>i隔离性：mvcc （ InnoDB表的隐藏字段+UndoLog 版本链+ReadView）或 锁</p>
+<blockquote>
+<p>多版本控制，保证了事务不会受其他事务进行的影响，其实就是 脏读 不可重复读 幻读</p>
+</blockquote>
+<p>d持久性：redo log</p>
+<blockquote>
+<p>重做日志redolog保证了 事务只要成功无论发生什么，哪怕机器故障，事务的操作也是 持久性 的。</p>
+<p>通过wal写前日志，保证数据一定落盘（就算断电也可以通过redolog进行操作保证落盘），详细见上面redolog介绍。</p>
+</blockquote>
+<h1 id="日志"><a href="#日志" class="headerlink" title="日志"></a>日志</h1><h2 id="错误日志"><a href="#错误日志" class="headerlink" title="错误日志"></a><strong>错误日志</strong></h2><p>错误日志是 MySQL 中最重要的日志之一，它记录了当 mysqld 启动和停止时，以及服务器在运行过程中发生任何严重错误时的相关信息。当数据库出现任何故障导致无法正常使用时，建议首先查看此日志。</p>
+<p>该日志是默认开启的，默认存放目录 /var/log/，默认的日志文件名为 mysqld.log 。</p>
+<p>查看日志位置：</p>
+<p><img src="img/image-20220527211001146.png" alt="image-20220527211001146"></p>
+<p>其实就是查看mysql的系统环境变量里面的log_error变量值就是错误日志的存放地址。</p>
+<h2 id="二进制日志"><a href="#二进制日志" class="headerlink" title="二进制日志"></a><strong>二进制日志</strong></h2><p>二进制日志（BINLOG）记录了所有的 DDL（数据定义语言）语句和 DML（数据操纵语言）语句，但不包括数据查询（SELECT、SHOW）语句。</p>
+<p>作用：</p>
+<p>①. 灾难时的数据恢复；</p>
+<p>②. MySQL的主从复制。</p>
+<p>在MySQL8版本中，默认二进制日志是开启着的</p>
+<p>由于日志是以二进制方式存储的，不能直接读取，需要通过二进制日志查询工具 mysqlbinlog 来查看：</p>
+<p><img src="img/image-20220527211341254.png" alt="image-20220527211341254"></p>
+<p><strong>删除</strong></p>
+<p>对于比较繁忙的业务系统，每天生成的binlog数据巨大，如果长时间不清除，将会占用大量磁盘空</p>
+<p>间。可以通过以下几种方式清理日志：</p>
+<p><img src="img/image-20220527211403715.png" alt="image-20220527211403715"></p>
+<h2 id="查询日志"><a href="#查询日志" class="headerlink" title="查询日志"></a><strong>查询日志</strong></h2><p>查询日志中记录了客户端的所有操作语句，而<strong>二进制日志不包含查询数据的SQL语句</strong>。</p>
+<p>默认情况下，查询日志是未开启的。</p>
+<p><img src="img/image-20220527211852847.png" alt="image-20220527211852847"></p>
+<p><img src="img/image-20220527211904545.png" alt="image-20220527211904545"></p>
+<h2 id="慢查询日志"><a href="#慢查询日志" class="headerlink" title="慢查询日志"></a><strong>慢查询日志</strong></h2><p><img src="img/image-20220527211950369.png" alt="image-20220527211950369"></p>
+<p>随着互联网及移动互联网的发展，应用系统的数据量也是成指数式增长，若采用单数据库进行数据存储，存在以下性能瓶颈：</p>
+<ol>
+<li><p>IO瓶颈：热点数据太多，数据库缓存不足，产生大量磁盘IO，效率较低。 请求数据太多，带宽不够，网络IO瓶颈。</p>
+<blockquote>
+<p><strong>这里重点说一下，在MySQL内存结构里，有很大一部分（80%）是分给内存缓冲区的，所以你数据量大了，自然内存占得多了，自然会导致缓存不足，而卡顿。缓存的优点也可以这里说一下。</strong></p>
+</blockquote>
+</li>
+<li><p>CPU瓶颈：排序、分组、连接查询、聚合统计等SQL会耗费大量的CPU资源，请求数太多，CPU出现瓶颈。</p>
+</li>
+</ol>
+<p>在业务系统中，为了缓解磁盘IO及CPU的性能瓶颈，到底是垂直拆分，还是水平拆分；具体是分库，还是分表，都需要根据具体的业务需求具体分析。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/15/JVM%E7%AC%94%E8%AE%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="0xiceee">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/08/15/JVM%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">未命名</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-08-15 11:15:04" itemprop="dateCreated datePublished" datetime="2022-08-15T11:15:04+08:00">2022-08-15</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-08-09 17:52:08" itemprop="dateModified" datetime="2022-08-09T17:52:08+08:00">2022-08-09</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="JVM笔记"><a href="#JVM笔记" class="headerlink" title="JVM笔记"></a>JVM笔记</h1><p>jvm是一种规范，各个公司都可以按照自己的特定需求去实现一个jvm。</p>
+<p>最火的大概是Oracle的Hotspot。</p>
+<p><img src="img/image-20220529130754236.png" alt="image-20220529130754236"></p>
+<p>从图中看主要分为这几块的学习：</p>
+<ul>
+<li>编译成字节码的优化</li>
+<li>类加载器</li>
+<li>jvm内存结构</li>
+<li>垃圾回收</li>
+<li>运行时的优化</li>
+</ul>
+<h1 id="jvm内存结构"><a href="#jvm内存结构" class="headerlink" title="jvm内存结构"></a>jvm内存结构</h1><p>jvm内存结构分为：</p>
+<ul>
+<li>程序计数器</li>
+<li>虚拟机栈</li>
+<li>本地方法栈</li>
+<li>堆</li>
+<li>方法区</li>
+</ul>
+<h2 id="程序计数器"><a href="#程序计数器" class="headerlink" title="程序计数器"></a>程序计数器</h2><p>Program Counter Register （寄存器）</p>
+<p>作用：用来记录下一条jvm指令执行的地址</p>
+<p>特点：</p>
+<ul>
+<li>线程私有</li>
+<li>不会内存溢出（jvm规范里唯一一个不会内存溢出的地区）</li>
+</ul>
+<h2 id="Java虚拟机栈"><a href="#Java虚拟机栈" class="headerlink" title="Java虚拟机栈"></a>Java虚拟机栈</h2><p>Java Virtual Machine Stacks</p>
+<ul>
+<li><p>每个线程运行时需要的内存就是虚拟机栈</p>
+</li>
+<li><p>每个栈由多个栈帧（frame）组成，每个栈帧对应着每次方法调用时占用的内存</p>
+<blockquote>
+<p>每加载一个方法，就会压入向你这个线程对应的虚拟机栈压入对应的方法</p>
+</blockquote>
+</li>
+<li><p>每个线程只能有一个活动栈帧，对应当前正在执行的方法，即栈顶部的那个栈帧就是活动栈帧</p>
+</li>
+</ul>
+<ol>
+<li><p>垃圾回收是否涉及栈内存？</p>
+<p>肯定是不涉及的，总不能你正在执行方法给你里面的方法（栈帧）回收了，导致中断程序吧。</p>
+<p>一个方法就是一个栈帧，方法在运行结束后对应的栈帧会一个弹出虚拟机栈清理掉。</p>
+</li>
+<li><p>栈内存分配</p>
+<p>运行代码时，有个参数<code>-Xss size</code>去指定占内存大小。</p>
+<p>栈内存是给线程使用的，这个参数指的就是一个线程的虚拟栈的大小，所以在虚拟机栈总容量固定的条件下，你这个size越大意味着你给一个线程分配的栈内存就更大，导致同时运行的线程不可能特别多。</p>
+<p>所以并非栈内存越大越好。</p>
+<p>linux，mac等都是默认1024KB的大小，win是根据虚拟内存大小分配。</p>
+</li>
+</ol>
+<h3 id="线程安全"><a href="#线程安全" class="headerlink" title="线程安全"></a>线程安全</h3><ol start="3">
+<li><p>方法内的局部变量是否线程安全？</p>
+<p>如果方法内局部变量没有逃离方法的作用访问，它是线程安全的</p>
+<p>如果是局部变量引用了对象，并逃离方法的作用范围，需要考虑线程安全</p>
+</li>
+</ol>
+<p><img src="img/image-20220529143859906.png" alt="image-20220529143859906"></p>
+<h3 id="栈内存溢出"><a href="#栈内存溢出" class="headerlink" title="栈内存溢出"></a>栈内存溢出</h3><img src="img/image-20220529144712825.png" alt="image-20220529144712825" style="zoom: 33%;" />
+
+<p>递归调用，最多38731次，栈溢出，报错StackOverflowError</p>
+<p>配置一下虚拟机栈内存大小为256k，再次运行</p>
+<p><img src="img/image-20220529144851907.png" alt="image-20220529144851907"></p>
+<p>这次运行发现只能走3499次就StackOverflow了，说明原来默认栈内存大小约2m左右</p>
+<p><img src="img/image-20220529144910105.png" alt="image-20220529144910105"></p>
+<h3 id="线程诊断，cpu占用过高"><a href="#线程诊断，cpu占用过高" class="headerlink" title="线程诊断，cpu占用过高"></a>线程诊断，cpu占用过高</h3><p>首先top命令查看后台各个进程占用情况，某个进程cpu占用99%那就说明有问题了</p>
+<p><code>top</code></p>
+<p>然后用ps命令定位此进程，查看此进程内的线程，找到那个99%的线程</p>
+<p><code>ps H -eo pid,tid,%cpu | grep 进程id</code></p>
+<p>然后jstack命令可以根据线程id 找到有问题的线程，进一步定位到问题代码的源码行号</p>
+<p><code>jstack 进程id</code></p>
+<p>然后看对应线程id nid下面的信息，线程运行状态java。thread。state = runnerable以及第几行代码出的问题</p>
+<p>死锁的话，下面也会告诉你found one java-level deadlock，以及涉及的线程，以及代码行数，然后去代码排查</p>
+<blockquote>
+<p>注意，你ps找到具体的线程id是十进制，而jstack显示的线程是十六进制，要转换一下方便找</p>
+<p>线程id ，nid</p>
+</blockquote>
+<h2 id="本地方法栈"><a href="#本地方法栈" class="headerlink" title="本地方法栈"></a>本地方法栈</h2><p>有很多方法java不方便实现的，就好通过这里直接调用操作系统底层方法，往往是c编写的，比如object类里的hashcode()，clone()方法，否是native方法，本地方法。</p>
+<p><img src="img/image-20220529154050122.png" alt="image-20220529154050122"></p>
+<h2 id="堆"><a href="#堆" class="headerlink" title="堆"></a>堆</h2><ul>
+<li>通过new关键字创建的，创建的对象都会使用堆内存</li>
+<li>这里的内存是线程共享的，和前面介绍的程序计数器以及栈内存是线程私有不一样，所以要考虑线程安全问题。</li>
+<li>这里存在垃圾回收机制</li>
+</ul>
+<h3 id="堆内存溢出"><a href="#堆内存溢出" class="headerlink" title="堆内存溢出"></a>堆内存溢出</h3><p><img src="img/image-20220529154605537.png" alt="image-20220529154605537"></p>
+<p>可以通过-Xmx size设置堆内存大小</p>
+<p>和上面xss一样设置方法，这里不演示了</p>
+<h2 id="方法区"><a href="#方法区" class="headerlink" title="方法区"></a>方法区</h2><p><img src="img/image-20220529155554668.png" alt="image-20220529155554668"></p>
+<blockquote>
+<p>1.8以前叫<strong>永久代</strong>，之后叫<strong>元空间</strong>，都是对java虚拟机规范中描述的一种名为“方法区”的逻辑区域的实现。hotpot的实现就是永久代，其他虚拟机都没有永久代说法。</p>
+<p>可以看到1.8以前方法区归jvm管理，1.8以后就到内存里了</p>
+<p>而且1.8以后StringTable字符串常量池也到堆里了，</p>
+</blockquote>
+<p>演示元空间内存溢出</p>
+<p><img src="img/image-20220529160058293.png" alt="image-20220529160058293"></p>
+<p>因为1.8以后默认元空间大小为虚拟内存大小，即电脑内存大小，几个G很难溢出，通过-xx命令设置一下元空间大小上限</p>
+<p><code>-XX:MaxMetaspaceSize=8m</code>设置元空间大小为8m</p>
+<p>那么元空间溢出的实际场景有哪些呢？</p>
+<p>spring和mybatis就用了大量底层字节码技术，spring里的aop底层，mybatis接口实现方法也是，都用的cglib。</p>
+<p>这些需要大量new 类的操作都可能导致元空间溢出。</p>
+<p>方法区包含运行时常量池</p>
+<p> <strong>运行时常量池</strong></p>
+<ul>
+<li><p>首先常量池，就是一张表，虚拟机指令根据这张常量表找到要执行的类名、方法名、参数类型、字面量等信息</p>
+</li>
+<li><p>运行时常量池，常量池是 *.class 文件中的，当该类被加载，它的常量池信息就会放入运行时常量池，并把里面的符号地址变为真实地址</p>
+</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F;hello.java</span><br><span class="line"></span><br><span class="line">public class hello &#123;</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        System.out.println(&quot;helloworld&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>javap -v hello.class反编译看一下，常量池在 .class 文件中的信息</p>
+<p><img src="img/image-20220529165735619.png" alt="image-20220529165735619"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br></pre></td><td class="code"><pre><span class="line">C:\idea\jvm\out\production\jvm\cn\itcast\jvm&gt;javap -v hello.class</span><br><span class="line">Classfile &#x2F;C:&#x2F;idea&#x2F;jvm&#x2F;out&#x2F;production&#x2F;jvm&#x2F;cn&#x2F;itcast&#x2F;jvm&#x2F;hello.class</span><br><span class="line">  Last modified 2022-5-29; size 545 bytes</span><br><span class="line">  MD5 checksum d2f02fd03deef34444cb6bef35942da3</span><br><span class="line">  Compiled from &quot;hello.java&quot;</span><br><span class="line">public class cn.itcast.jvm.hello</span><br><span class="line">  minor version: 0</span><br><span class="line">  major version: 52</span><br><span class="line">  flags: ACC_PUBLIC, ACC_SUPER</span><br><span class="line">Constant pool:</span><br><span class="line">   #1 &#x3D; Methodref          #6.#20         &#x2F;&#x2F; java&#x2F;lang&#x2F;Object.&quot;&lt;init&gt;&quot;:()V</span><br><span class="line">   #2 &#x3D; Fieldref           #21.#22        &#x2F;&#x2F; java&#x2F;lang&#x2F;System.out:Ljava&#x2F;io&#x2F;PrintStream;</span><br><span class="line">   #3 &#x3D; String             #23            &#x2F;&#x2F; helloworld</span><br><span class="line">   #4 &#x3D; Methodref          #24.#25        &#x2F;&#x2F; java&#x2F;io&#x2F;PrintStream.println:(Ljava&#x2F;lang&#x2F;String;)V</span><br><span class="line">   #5 &#x3D; Class              #26            &#x2F;&#x2F; cn&#x2F;itcast&#x2F;jvm&#x2F;hello</span><br><span class="line">   #6 &#x3D; Class              #27            &#x2F;&#x2F; java&#x2F;lang&#x2F;Object</span><br><span class="line">   #7 &#x3D; Utf8               &lt;init&gt;</span><br><span class="line">   #8 &#x3D; Utf8               ()V</span><br><span class="line">   #9 &#x3D; Utf8               Code</span><br><span class="line">  #10 &#x3D; Utf8               LineNumberTable</span><br><span class="line">  #11 &#x3D; Utf8               LocalVariableTable</span><br><span class="line">  #12 &#x3D; Utf8               this</span><br><span class="line">  #13 &#x3D; Utf8               Lcn&#x2F;itcast&#x2F;jvm&#x2F;hello;</span><br><span class="line">  #14 &#x3D; Utf8               main</span><br><span class="line">  #15 &#x3D; Utf8               ([Ljava&#x2F;lang&#x2F;String;)V</span><br><span class="line">  #16 &#x3D; Utf8               args</span><br><span class="line">  #17 &#x3D; Utf8               [Ljava&#x2F;lang&#x2F;String;</span><br><span class="line">  #18 &#x3D; Utf8               SourceFile</span><br><span class="line">  #19 &#x3D; Utf8               hello.java</span><br><span class="line">  #20 &#x3D; NameAndType        #7:#8          &#x2F;&#x2F; &quot;&lt;init&gt;&quot;:()V</span><br><span class="line">  #21 &#x3D; Class              #28            &#x2F;&#x2F; java&#x2F;lang&#x2F;System</span><br><span class="line">  #22 &#x3D; NameAndType        #29:#30        &#x2F;&#x2F; out:Ljava&#x2F;io&#x2F;PrintStream;</span><br><span class="line">  #23 &#x3D; Utf8               helloworld</span><br><span class="line">  #24 &#x3D; Class              #31            &#x2F;&#x2F; java&#x2F;io&#x2F;PrintStream</span><br><span class="line">  #25 &#x3D; NameAndType        #32:#33        &#x2F;&#x2F; println:(Ljava&#x2F;lang&#x2F;String;)V</span><br><span class="line">  #26 &#x3D; Utf8               cn&#x2F;itcast&#x2F;jvm&#x2F;hello</span><br><span class="line">  #27 &#x3D; Utf8               java&#x2F;lang&#x2F;Object</span><br><span class="line">  #28 &#x3D; Utf8               java&#x2F;lang&#x2F;System</span><br><span class="line">  #29 &#x3D; Utf8               out</span><br><span class="line">  #30 &#x3D; Utf8               Ljava&#x2F;io&#x2F;PrintStream;</span><br><span class="line">  #31 &#x3D; Utf8               java&#x2F;io&#x2F;PrintStream</span><br><span class="line">  #32 &#x3D; Utf8               println</span><br><span class="line">  #33 &#x3D; Utf8               (Ljava&#x2F;lang&#x2F;String;)V</span><br><span class="line">&#123;</span><br><span class="line">  public cn.itcast.jvm.hello();</span><br><span class="line">    descriptor: ()V</span><br><span class="line">    flags: ACC_PUBLIC</span><br><span class="line">    Code:</span><br><span class="line">      stack&#x3D;1, locals&#x3D;1, args_size&#x3D;1</span><br><span class="line">         0: aload_0</span><br><span class="line">         1: invokespecial #1                  &#x2F;&#x2F; Method java&#x2F;lang&#x2F;Object.&quot;&lt;init&gt;&quot;:()V</span><br><span class="line">         4: return</span><br><span class="line">      LineNumberTable:</span><br><span class="line">        line 10: 0</span><br><span class="line">      LocalVariableTable:</span><br><span class="line">        Start  Length  Slot  Name   Signature</span><br><span class="line">            0       5     0  this   Lcn&#x2F;itcast&#x2F;jvm&#x2F;hello;</span><br><span class="line"></span><br><span class="line">  public static void main(java.lang.String[]);</span><br><span class="line">    descriptor: ([Ljava&#x2F;lang&#x2F;String;)V</span><br><span class="line">    flags: ACC_PUBLIC, ACC_STATIC</span><br><span class="line">    Code:</span><br><span class="line">      stack&#x3D;2, locals&#x3D;1, args_size&#x3D;1</span><br><span class="line">         0: getstatic     #2                  &#x2F;&#x2F; Field java&#x2F;lang&#x2F;System.out:Ljava&#x2F;io&#x2F;PrintStream;</span><br><span class="line">         3: ldc           #3                  &#x2F;&#x2F; String helloworld</span><br><span class="line">         5: invokevirtual #4                  &#x2F;&#x2F; Method java&#x2F;io&#x2F;PrintStream.println:(Ljava&#x2F;lang&#x2F;String;)V</span><br><span class="line">         8: return</span><br><span class="line">      LineNumberTable:</span><br><span class="line">        line 12: 0</span><br><span class="line">        line 13: 8</span><br><span class="line">      LocalVariableTable:</span><br><span class="line">        Start  Length  Slot  Name   Signature</span><br><span class="line">            0       9     0  args   [Ljava&#x2F;lang&#x2F;String;</span><br><span class="line">&#125;</span><br><span class="line">SourceFile: &quot;hello.java&quot;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>可以看到第十行的Constant pool:就是常量池</p>
+<p>65行的代码</p>
+<p><code>3: ldc           #3 </code></p>
+<p>就是从Constant pool里面读常量，对应的#3就是:</p>
+<p><code> #3 = String             #23            // helloworld</code></p>
+<p><code> #23 = Utf8               helloworld</code></p>
+<p>先说明是string，再说明是utf-8 编码的 内容是  helloworld</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; StringTable [ &quot;a&quot;, &quot;b&quot; ,&quot;ab&quot; ]  hashtable 结构，不能扩容</span><br><span class="line"></span><br><span class="line">public class Demo1_22 &#123;</span><br><span class="line">    &#x2F;&#x2F; 常量池中的信息，都会被加载到运行时常量池中， 这时 a b ab 都是常量池中的符号，还没有变为 java 字符串对象</span><br><span class="line">    &#x2F;&#x2F; ldc #2 会把 a 符号变为 &quot;a&quot; 字符串对象</span><br><span class="line">    &#x2F;&#x2F; ldc #3 会把 b 符号变为 &quot;b&quot; 字符串对象</span><br><span class="line">    &#x2F;&#x2F; ldc #4 会把 ab 符号变为 &quot;ab&quot; 字符串对象</span><br><span class="line"></span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line">        String s1 &#x3D; &quot;a&quot;; &#x2F;&#x2F; 懒惰的</span><br><span class="line">        String s2 &#x3D; &quot;b&quot;;</span><br><span class="line">        String s3 &#x3D; &quot;ab&quot;;</span><br><span class="line">        String s4 &#x3D; s1 + s2; &#x2F;&#x2F; new StringBuilder().append(&quot;a&quot;).append(&quot;b&quot;).toString()  new String(&quot;ab&quot;)</span><br><span class="line">        String s5 &#x3D; &quot;a&quot; + &quot;b&quot;;  &#x2F;&#x2F; javac 在编译期间的优化，结果已经在编译期确定为ab</span><br><span class="line"></span><br><span class="line">        System.out.println(s3 &#x3D;&#x3D; s5);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>常量池首先在字节码文件中，然后会被加载到运行时常量池中，这时这些常量都是符号，不是java对象，当具体执行到代码时，比如编译后的 ldc #2 就是把#2号位的常量变为“a”对象，然后会准备一块空间叫      StringTable串池             结构是hash表，然后在里面找“a“，如果有就用里面有相同的就用现成的，当然第一次找肯定没有，如果没有就会创建一个到里面，此时执行astore_1，就是把上面ldc出来的“a“存进去LocalVariableTable空间对应的的slot，astore_1就是存入slot1。</p>
+<p><img src="img/image-20220530230047457.png" alt="image-20220530230047457"></p>
+<p>分析一下上面代码里的String s4 = s1 + s2;   </p>
+<p><img src="img/image-20220530225741669.png" alt="image-20220530225741669"></p>
+<table>
+<thead>
+<tr>
+<th>字节码</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>new           #5                  // class java/lang/StringBuilder</td>
+<td>新建一个StringBuilder对象</td>
+</tr>
+<tr>
+<td>invokespecial #6                  // Method java/lang/StringBuilder.”<init>“:()V</td>
+<td>调用默认无参构造方法</td>
+</tr>
+<tr>
+<td>aload_1</td>
+<td>（在执行String s4 = s1 + s2时肯定要先把s1和s2的参数准备好）加载slot1里的内容，即s1</td>
+</tr>
+<tr>
+<td>invokevirtual #7                  // Method java/lang/<strong>StringBuilder.append</strong>:(Ljava/lang/String;)Ljava/lang/StringBuilder;</td>
+<td>调用了StringBuilder.append方法，参数就是上面aload的s1</td>
+</tr>
+<tr>
+<td>aload_2</td>
+<td>加载slot2里的内容，即s2</td>
+</tr>
+<tr>
+<td>invokevirtual #7                  // Method java/lang/<strong>StringBuilder.append</strong>:(Ljava/lang/String;)Ljava/lang/StringBuilder;</td>
+<td>调用了StringBuilder.append方法，参数就是上面aload的s2</td>
+</tr>
+<tr>
+<td>invokevirtual #8                  // Method java/lang/<strong>StringBuilder.toString</strong>:()Ljava/lang/String;</td>
+<td>调用StringBuilder.toString方法</td>
+</tr>
+<tr>
+<td>astore        4</td>
+<td>存到slot4里</td>
+</tr>
+</tbody></table>
+<p><img src="img/image-20220530230621278.png" alt="image-20220530230621278"></p>
+<p>综上其实String s4 = s1 + s2; 这行代码就是</p>
+<p>  new StringBuilder().append(“a”).append(“b”).toString()；  的意思</p>
+<p>然后我们看了stringbuilder里的tostring源码，new了一个string值是当前值，所以说其实s4是new出来的</p>
+<p><strong>这里new出来的新对象肯定是在堆里，和常量池里面的不一样（虽然常量池StringTable也在堆里），s4自然不等于s3</strong></p>
+<p>s4的“ab”是堆对象的“ab“的引用，s3是常量池里的“ab”对象引用</p>
+<p><code>String s5 = &quot;a&quot; + &quot;b&quot;;</code>的字节码：</p>
+<p><img src="img/image-20220530231406695.png" alt="image-20220530231406695"></p>
+<p>从#4（常量池Constant pool里的4号元素就是“ab”）取出来“ab”并存入slot5，slot5就是s5的位置</p>
+<p>所以s3和s5都一样，因为都是引用串池（常量池）里#4的“ab”</p>
+<p>这里是因为，这里拼接的是常量，在编译期间就可以确定值以及结果，所以javac在编译期间就优化了一下把结果确定为ab了，此时就相当于你String s5 = “ab”，和上面分析s3的步骤一样，先去串池里找，只不过s3找不到新创建一个“ab”扔进串池，这里s5可以在串池里（常量池StringTable）找到就直接用了。</p>
+<p>上面s4为啥不优化呢？因为你拼接的是s1和s2还可能值会变化，编译期间自然不能优化为s1s2的结构然后拼接好去串池找。</p>
+<p>综上，我们知道了StringTable的几个特性：</p>
+<ul>
+<li><p>常量池中的字符串仅是符号，第一次用到时才变为对象</p>
+</li>
+<li><p>利用串池的机制，来避免重复创建字符串对象</p>
+</li>
+<li><p>字符串变量拼接的原理是 StringBuilder （1.8）</p>
+</li>
+<li><p>字符串常量拼接的原理是编译期优化</p>
+</li>
+<li><p>可以使用 intern 方法，主动将串池中还没有的字符串对象放入串池</p>
+<p><img src="img/image-20220530233816257.png" alt="image-20220530233816257"></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">public class Demo1_23 &#123;</span><br><span class="line"></span><br><span class="line">    &#x2F;&#x2F;  [&quot;ab&quot;, &quot;a&quot;, &quot;b&quot;]</span><br><span class="line">    public static void main(String[] args) &#123;</span><br><span class="line"></span><br><span class="line">        String x &#x3D; &quot;ab&quot;;</span><br><span class="line">        String s &#x3D; new String(&quot;a&quot;) + new String(&quot;b&quot;);</span><br><span class="line"></span><br><span class="line">        &#x2F;&#x2F; 堆  new String(&quot;a&quot;)   new String(&quot;b&quot;) new String(&quot;ab&quot;)</span><br><span class="line">        String s2 &#x3D; s.intern(); &#x2F;&#x2F; 将这个字符串对象尝试放入串池，如果有则并不会放入，如果没有则放入串池， 会把串池中的对象返回</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">		&#x2F;&#x2F;String x &#x3D; &quot;ab&quot;;</span><br><span class="line">        System.out.println( s2 &#x3D;&#x3D; x);</span><br><span class="line">        System.out.println( s &#x3D;&#x3D; x );</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>1.8 intern将这个字符串对象尝试放入串池，如果有则并不会放入，如果没有则会把此<strong>对象引用</strong>拷贝放入串池， 会把串池中的对象返回</p>
+</li>
+<li><p>1.6intern 将这个字符串对象尝试放入串池，如果有则并不会放入，如果没有则会把此<strong>对象实体</strong>拷贝放入串池， 会把串池中的对象返回</p>
+<blockquote>
+<p>这样的原因是因为，1.8里串池（常量池，StringTable）就在堆里，防止重复创建（拷贝）对象，直接用引用省空间。而1.6里串池是在内存里方法区（方法区是虚拟的结构）其实就是在内存里。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="直接内存NIO"><a href="#直接内存NIO" class="headerlink" title="直接内存NIO"></a>直接内存NIO</h2><img src="img/E84141259BC94139176359A49FF57A4A.png" alt="img" style="zoom: 33%;" />
+
+<p>java用户态是不能直接访问磁盘的，于是要访问磁盘就要调用内核态系统的底层c函数，这样磁盘文件就先拷贝到系统内存，然后再拷贝到<strong>java堆内存</strong>，然后java用户态才能取到数据。</p>
+<p>NIO直接创建一个byteBuffer数组，少了一次拷贝，因为是java创建的<strong>堆外内存</strong>区域，java用户态可以直接操作，系统磁盘也可以直接访问，<strong>避免了在</strong> <strong>Java</strong> <strong>堆和</strong> <strong>Native 堆之间来回复制数据</strong></p>
+<p><code>ByteBuffer bb = ByteBuffer.allocateDirect(_1Mb);</code></p>
+<p><strong>与普通IO的不同和关系：</strong></p>
+<ul>
+<li>NIO是面向通道和缓冲区的，普通IO是面向字节流和字符流的</li>
+<li>NIO不再是和IO一样用OutputStream和InputStream输入流的形式来进行处理数据的，但是又是基于这种流的方式，采用了通道和缓冲区的形式进行处理</li>
+<li>NIO的通道是可以双向的，IO的流只能是单向的</li>
+<li>NIO的缓冲区(字节数组)还可以进行分片，可以建立只读缓冲区、直接缓冲区和间接缓冲区，只读缓冲区就是只可以读，直接缓冲区是为了加快I/O速度，以一种特殊的方式分配其内存的缓冲区</li>
+<li>NIO采用的是多路复用的IO模型，BIO用的是阻塞的IO模型</li>
+</ul>
+<blockquote>
+<p>通道Channel负责传输，缓冲区Buffer负责存储</p>
+</blockquote>
+<p><strong>分配和回收原理</strong></p>
+<ul>
+<li><p>使用了 Unsafe 对象完成直接内存的分配回收，并且回收需要主动调用 freeMemory 方法</p>
+</li>
+<li><p>ByteBuffffer 的实现类内部，使用了 Cleaner （虚引用）来监测 ByteBuffffer 对象，一旦</p>
+</li>
+<li><p>ByteBuffffer 对象被垃圾回收，那么就会由 ReferenceHandler 线程通过 Cleaner 的 clean 方法调用 freeMemory 来释放直接内存</p>
+</li>
+</ul>
+<h1 id="垃圾回收"><a href="#垃圾回收" class="headerlink" title="垃圾回收"></a>垃圾回收</h1><h2 id="如何判断对象可以回收"><a href="#如何判断对象可以回收" class="headerlink" title="如何判断对象可以回收"></a>如何判断对象可以回收</h2><ol>
+<li>如何判断对象可以回收</li>
+</ol>
+<ul>
+<li><p>引用计数法</p>
+<p>一个对象每被引用一次就计数加一，每减少一次引用就计数减一，计数值为0自然无法再使用此对象自然就是垃圾可以回收</p>
+<blockquote>
+<p>缺点：</p>
+<p>如果遇到，循环引用，a引用b，b引用a，a，b的计数值都是1，但是却无法使用这两个对象了就没法处理</p>
+</blockquote>
+</li>
+<li><p>可达性分析</p>
+<p>Java 虚拟机中的垃圾回收器就是采用可达性分析来探索所有存活的对象</p>
+<p>扫描堆中的对象，看是否能够沿着 GC Root对象 为起点的引用链找到该对象，找不到，表示可以回收。</p>
+<blockquote>
+<p>哪些对象可以作为 GC Root ?</p>
+<p><strong>一定不会被回收的对象就是GC Root对象。</strong></p>
+<p>比如<strong>System Class启动类加载的类</strong>，这些类都是核心类，比如java.lang包下的Object，System，String等；</p>
+<p><strong>Native Stack，java在执行时会调用一些操作系统的底层函数</strong>，这些方法加载在native stack里；</p>
+<p><strong>Busy Monitor</strong>，在程序运行时对某个线程加锁了，那这里面加锁的对象肯定不能被回收；</p>
+<p><strong>Thread，活动线程里的对象</strong>，活动线程的运行就是一次一次的方法调用，每个方法调用都会产生一个栈帧，栈帧内的东西，比如你创建的集合对象也好，局部变量引用的对象也好肯定都不能被回收，还有方法参数引用的字符串数组对象String[ ] args也不能被回收。</p>
+<p>所以说这些GC Root就是肯定不能被回收的对象，那么自然，他们引用的对象相关的对象也不能被回收。</p>
+</blockquote>
+</li>
+</ul>
+<h2 id="五种引用"><a href="#五种引用" class="headerlink" title="五种引用"></a>五种引用</h2><p>在Java中提供了四个级别的引用：强引用，软引用，弱引用和虚引用。在这四个引用类型中，只有强引用FinalReference类是包内可见，其他三种引用类型均为public，可以在应用程序中直接使用。引用类型的类结构如图所示。</p>
+<p>1.强引用</p>
+<p>Java中的引用，类似C语言中最难的指针。（我是C语言入门编程，指针的概念还是很深入我心。）通过引用，可以对堆中的对象进行操作。如：</p>
+<p>StringBuffer stringBuffer = new StringBuffer(“Helloword”);</p>
+<p>变量str指向StringBuffer实例所在的堆空间，通过str可以操作该对象。</p>
+<p>强引用的特点：</p>
+<ul>
+<li>强引用可以直接访问目标对象。</li>
+<li>强引用所指向的对象在任何时候都不会被系统回收。JVM宁愿抛出OOM异常，也不会回收强引用所指向的对象。</li>
+<li>强引用可能导致内存泄漏。</li>
+</ul>
+<p>2.软引用</p>
+<p>软引用是除了强引用外，最强的引用类型。可以通过java.lang.ref.SoftReference使用软引用。一个持有软引用的对象，不会被JVM很快回收，JVM会根据当前堆的使用情况来判断何时回收。当堆使用率临近阈值时，才会去回收软引用的对象。因此，软引用可以用于实现对内存敏感的高速缓存。</p>
+<p>SoftReference的特点是它的一个实例保存对一个Java对象的软引用， 该软引用的存在不妨碍垃圾收集线程对该Java对象的回收。也就是说，一旦SoftReference保存了对一个Java对象的软引用后，在垃圾线程对 这个Java对象回收前，SoftReference类所提供的get()方法返回Java对象的强引用。一旦垃圾线程回收该Java对象之后，get()方法将返回null。</p>
+<p>下面举一个例子说明软引用的使用方法。</p>
+<p>在你的IDE设置参数 -Xmx2m -Xms2m规定堆内存大小为2m。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">@Test</span><br><span class="line">public void test3()&#123;</span><br><span class="line">MyObject obj &#x3D; new myObject();</span><br><span class="line">SoftReference sf &#x3D; new SoftReference&lt;&gt;(obj);</span><br><span class="line">obj &#x3D; null;</span><br><span class="line">System.gc();</span><br><span class="line">&#x2F;&#x2F; byte[] bytes &#x3D; new byte[1024*100];</span><br><span class="line">&#x2F;&#x2F; System.gc();</span><br><span class="line">System.out.println(&quot;是否被回收&quot;+sf.get());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<p><code>是否被回收cn.zyzpp.MyObject@42110406</code></p>
+<p>打开被注释掉的new byte[1024*100]语句，这条语句请求一块大的堆空间，使堆内存使用紧张。并显式的再调用一次GC，结果如下：</p>
+<p><code>是否被回收null</code></p>
+<p>说明在系统内存紧张的情况下，软引用被回收。</p>
+<h3 id="软引用自身如何释放？"><a href="#软引用自身如何释放？" class="headerlink" title="软引用自身如何释放？"></a><strong>软引用自身如何释放？</strong></h3><p>使用引用队列。</p>
+<p>当软引用变量自身 所关联的对象 被回收时，软引用自己会加入到 queue 中去</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; 关联了引用队列， 当软引用所关联的 byte[]被回收时，软引用自己会加入到 queue 中去</span><br><span class="line">SoftReference&lt;byte[]&gt; ref &#x3D; new SoftReference&lt;&gt;(new byte[_4MB], queue);</span><br></pre></td></tr></table></figure>
+
+
+
+<p>3.弱引用</p>
+<p>弱引用是一种比软引用较弱的引用类型。在系统GC时，只要发现弱引用，不管系统堆空间是否足够，都会将对象进行回收。在java中，可以用java.lang.ref.WeakReference实例来保存对一个Java对象的弱引用。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">public void test3()&#123;</span><br><span class="line">MyObject obj &#x3D; new MyObject();</span><br><span class="line">WeakReference sf &#x3D; new WeakReference(obj);</span><br><span class="line">obj &#x3D; null;</span><br><span class="line">System.out.println(&quot;是否被回收&quot;+sf.get());</span><br><span class="line">System.gc();</span><br><span class="line">System.out.println(&quot;是否被回收&quot;+sf.get());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<p><code>是否被回收cn.zyzpp.MyObject@42110406</code></p>
+<p><code>是否被回收null</code></p>
+<p>软引用，弱引用都非常适合来保存那些可有可无的缓存数据，如果这么做，当系统内存不足时，这些缓存数据会被回收，不会导致内存溢出。而当内存资源充足时，这些缓存数据又可以存在相当长的时间，从而起到加速系统的作用。</p>
+<p>4.虚引用</p>
+<p>虚引用是所有类型中最弱的一个。一个持有虚引用的对象，和没有引用几乎是一样的，随时可能被垃圾回收器回收。当试图通过虚引用的get()方法取得强引用时，总是会失败。并且，虚引用必须和引用队列一起使用，它的作用在于跟踪垃圾回收过程。</p>
+<p>当垃圾回收器准备回收一个对象时，如果发现它还有虚引用，就会在垃圾回收后，销毁这个对象，将这个虚引用加入引用队列。程序可以通过判断引用队列中是否已经加入了虚引用，来了解被引用的对象是否将要被垃圾回收。如果程序发现某个虚引用已经被加入到引用队列，那么就可以在所引用的对象的内存被回收之前采取必要的行动。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public void test3()&#123;</span><br><span class="line">MyObject obj &#x3D; new MyObject();</span><br><span class="line">ReferenceQueue referenceQueue &#x3D; new ReferenceQueue&lt;&gt;();</span><br><span class="line">PhantomReference sf &#x3D; new PhantomReference&lt;&gt;(obj,referenceQueue);</span><br><span class="line">obj &#x3D; null;</span><br><span class="line">System.out.println(&quot;是否被回收&quot;+sf.get());</span><br><span class="line">System.gc();</span><br><span class="line">System.out.println(&quot;是否被回收&quot;+sf.get());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>运行结果：</p>
+<p><code>是否被回收null</code></p>
+<p><code>是否被回收null</code></p>
+<p>对虚引用的get()操作，总是返回null，因为sf.get()方法的实现如下：</p>
+<p>public T get() {</p>
+<p>return null;</p>
+<p>}</p>
+<p>\5. 终结器引用（FinalReference）</p>
+<ul>
+<li>无需手动编码，但其内部配合引用队列使用，在垃圾回收时，终结器引用入队（被引用对象暂时没有被回收），再由 Finalizer 线程通过终结器引用找到被引用对象并调用它的 fifinalize方法，第二次 GC 时才能回收被引用对象</li>
+<li> 重写object对象的finallize方法后，虚拟机会自动创建一个终接器引用，在对象回收后，会把终接器引用放入引用队列，在终接器引用被丢入引用队列后， Finalizer 线程来处理这个引用队列，由于Finalizer 线程优先级很低，所以可能导致finallize迟迟不能执行导致无法释放对象空间，所以不推荐使用终接器引用</li>
+</ul>
+<h2 id="什么时候垃圾回收"><a href="#什么时候垃圾回收" class="headerlink" title="什么时候垃圾回收"></a>什么时候垃圾回收</h2><p>不可控，jvm自动进行。</p>
+<p>eden，from，to不够用了  minor gc</p>
+<p>old区不够用    major gc   ——》通常major gc 会导致一次 minor gc，这俩gc一起就是 full gc</p>
+<h1 id="垃圾回收算法"><a href="#垃圾回收算法" class="headerlink" title="垃圾回收算法"></a>垃圾回收算法</h1><ol>
+<li><p>标记清除</p>
+<p>先标记再清除。</p>
+<p>标记一下垃圾，垃圾就是GC Root无法引用的对象，但是并不会直接清除内存，而是把这些对象的内存空间的起始记录到空闲内存里，下次需要分配空间时可以使用这些内存直接覆盖。</p>
+<p>特点：</p>
+<ul>
+<li>清除速度快，不只需要标记然后记录内存起始位置，不需要多余操作。</li>
+<li>容易产生内存碎片，内存利用率低。</li>
+</ul>
+</li>
+</ol>
+<ol start="2">
+<li><p>标记整理</p>
+<p>也是先标记，标记垃圾原则和上面一样根据是否被GC Root引用。为了避免内存碎片，会把活着的对象，让他们向一边移动，这样就避免了内存碎片。</p>
+<p>特点：</p>
+<ul>
+<li><p>没有内存碎片，利用率更高。</p>
+</li>
+<li><p>速度较慢，因为整理后对象地址肯定发生改变，所以这个对象的引用肯定要改变。（因为你对象的引用肯定引用的是地址。</p>
+</li>
+</ul>
+</li>
+<li><p>复制</p>
+<p>把内存分为两个大小相等的空间。</p>
+<p>然后先标记好是否为垃圾，然后把存活的对象复制到另外一块空间。</p>
+<p>（有点类似redis rehash）</p>
+<p>特点：</p>
+<ul>
+<li>把内存分两块FROM,TO，利用率低。</li>
+<li>复制过去时是挨着复制的，所以没有内存碎片。</li>
+</ul>
+</li>
+</ol>
+<p>新生代垃圾多，适合复制算法</p>
+<p>老年代推荐 标记清楚、标记整理</p>
+<h1 id="分代垃圾回收"><a href="#分代垃圾回收" class="headerlink" title="分代垃圾回收"></a>分代垃圾回收</h1><p><img src="img/image-20220614210048769.png" alt="image-20220614210048769"></p>
+<ul>
+<li>对象首先分配在伊甸园区域</li>
+<li>新生代空间不足时，触发 minor gc，伊甸园和 from 存活的对象使用 copy 复制到 to 中，存活的对象年龄加 1并且交换 from to</li>
+<li>minor gc 会引发 stop the world，暂停其它用户的线程，等垃圾回收结束，用户线程才恢复运行</li>
+<li>当对象寿命超过阈值时，会晋升至老年代，最大寿命是15（对象头中4bit，所以最大15）</li>
+<li>当老年代空间不足，会先尝试触发 minor gc，如果之后空间仍不足，那么触发full gc（minor gc，major gc），STW的时间更长</li>
+<li>major gc 就是 old gc</li>
+</ul>
+<p>老年代空间担保，如果from to放不下了，就会借用一下老年代空间，此时放进去的直接就是老年代</p>
+<p>为什么新生代内存（eden，from，to）划分比例是8:1:1呢？</p>
+<p>eden是新对象创建的地方，必须大，小的话满了就要 minor gc，往to复制，minor gc影响性能</p>
+<table>
+<thead>
+<tr>
+<th><strong>含义</strong></th>
+<th><strong>参数</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>堆初始大小</td>
+<td>-Xms</td>
+</tr>
+<tr>
+<td>堆最大大小</td>
+<td>-Xmx 或 -XX:MaxHeapSize=size</td>
+</tr>
+<tr>
+<td>新生代大小</td>
+<td>-Xmn 或 (-XX:NewSize=size + -XX:MaxNewSize=size )</td>
+</tr>
+<tr>
+<td>幸存区比例（动态）</td>
+<td>-XX:InitialSurvivorRatio=ratio 和 -XX:+UseAdaptiveSizePolicy</td>
+</tr>
+<tr>
+<td>幸存区比例</td>
+<td>-XX:SurvivorRatio=ratio</td>
+</tr>
+<tr>
+<td>晋升阈值</td>
+<td>-XX:MaxTenuringThreshold=threshold</td>
+</tr>
+<tr>
+<td>晋升详情</td>
+<td>-XX:+PrintTenuringDistribution</td>
+</tr>
+<tr>
+<td>GC详情</td>
+<td>-XX:+PrintGCDetails -verbose:gc</td>
+</tr>
+<tr>
+<td>FullGC 前 MinorGC</td>
+<td>XX:+ScavengeBeforeFullGC</td>
+</tr>
+</tbody></table>
+<h1 id="垃圾收集器"><a href="#垃圾收集器" class="headerlink" title="垃圾收集器"></a>垃圾收集器</h1><blockquote>
+<p>垃圾收集器就是  上面垃圾回收算法的实践</p>
+</blockquote>
+<p><img src="img/image-20220804001533117.png" alt="image-20220804001533117"></p>
+<ol>
+<li><p><strong>串行垃圾回收器</strong></p>
+<ul>
+<li>单线程</li>
+<li>适合堆内存较小，个人电脑cpu个数少的</li>
+<li>垃圾回收线程运行时，其他线程阻塞，也就是stw</li>
+</ul>
+<p><img src="img/image-20220614212851627.png" alt="image-20220614212851627"></p>
+<p><code>-XX:+UseSerialGC = Serial + SerialOld</code>开启</p>
+<p>serial 复制算法</p>
+<p>serialOld 标记整理算法</p>
+</li>
+<li><p><strong>吞吐量优先垃圾回收器</strong></p>
+<ul>
+<li>多线程</li>
+<li>堆内存较大，需要多核cpu（如果是单核cpu，那就会多个线程抢你这个cpu，反而不如串行垃圾回收器）</li>
+<li>单位时间内stop the world时间尽可能最短，次数最少，自然单次时间多，每次量大</li>
+</ul>
+<p><code>-XX:+UseParallelGC ~ -XX:+UseParallelOldGC</code></p>
+<p>ParallelGC 复制算法</p>
+<p>ParallelOldGC 标记整理算法</p>
+<p><code>-XX:ParallelGCThreads=n</code>指定使用线程数</p>
+<p><code>-XX:GCTimeRatio=ratio</code>：公式是1/1+ratio，默认ratio是99，一般设置为19，向着垃圾回收时间不超过  <code>工作时间 x 1/1+ratio</code>去调整堆内存大小。如果达不到这个目标，一般会把堆内存增大，这样垃圾回收次数少自然占总工作时间比例低，从而达到目标。</p>
+<p><code>-XX:MaxGCPauseMillis=ms </code>：最大垃圾回收时间，默认200ms。和上面的是对立的，因为上面会把堆内存优化大，堆内存大了单次回收时间就长了，自然会超过，然后这里再优化把堆内存减少。所以这两个指标折中使用。</p>
+</li>
+<li><p><strong>响应时间优先垃圾回收器CMS</strong></p>
+<ul>
+<li>标记清除算法</li>
+<li>多线程</li>
+<li>堆内存较大，需要多核cpu（如果是单核cpu，那就会多个线程抢你这个cpu，反而不如串行垃圾回收器）</li>
+<li>单次垃圾回收的stop the world时间尽可能短，次数相对较多，自然单次时间少，每次量小</li>
+</ul>
+<p><code>-XX:+UseConcMarkSweepGC ~ -XX:+UseParNewGC ~ SerialOld </code></p>
+<p><code>-XX:ParallelGCThreads=n ~ -XX:ConcGCThreads=threads </code>：并发时线程数配置</p>
+<p><code>-XX:CMSInitiatingOccupancyFraction=percent </code>：老年代占比到percent时就发生gc，留一些浮动空间给并发的线程</p>
+<p><code>-XX:+CMSScavengeBeforeRemark</code>：重新标记前，再对新生代gc一下，防止新生代引用老年代对象，导致扫描整个堆，减轻重新标记压力</p>
+<p><img src="img/image-20220614214929181.png" alt="image-20220614214929181"></p>
+</li>
+</ol>
+<p><strong>G1</strong></p>
+<p>Garbage First</p>
+<p>jdk7开始出现</p>
+<p>jdk8推荐使用，但是需要自己打开</p>
+<p>2017 jdk9 默认 取代之前的CMS</p>
+<ul>
+<li><p>同时注重吞吐量（Throughput）和低延迟（Low latency），默认的暂停目标是 200 ms</p>
+</li>
+<li><p>适用于超大堆内存，会将堆划分为多个大小相等的 Region</p>
+</li>
+<li><p>整体上是 标记+整理 算法，两个区域之间是 复制 算法</p>
+</li>
+</ul>
+<p>相关 JVM 参数</p>
+<p><code>-XX:+UseG1GC </code>：jdk9以后默认，jdk8的话需要用这个打开</p>
+<p><code>-XX:G1HeapRegionSize=size </code>：每个区域大小</p>
+<p><code>-XX:MaxGCPauseMillis=time</code>：暂停时间</p>
+<p>G1(Garbage-First)是一款面向服务器的垃圾收集器<br>主要针对多颗处理器及大容量内存的机器<br>以极高概率满足GC停顿时间要求的同时<br>还具备高吞吐量性能特征</p>
+<p>在物理上没有分代的概念 但在逻辑上还是有分代概念<br>物理上是一个一个小格子 整合成一个大的堆内存</p>
+<p>G1将Java堆划分为多个大小相等的独立区域(Region)<br>JVM最多可以有2048个Region<br>一般Region大小等于堆大小除以2048 比如堆大小为4096M<br>则Region大小为2M<br>当然也可以用参数”-XX:G1HeapRegionSize”手动指定<br>Region大小 但是推荐默认的计算方式</p>
+<p>G1保留了年轻代和老年代的概念 但不再是物理隔离了<br>它们都是(可以不连续)Region的集合</p>
+<p>G1垃圾收集器对于对象什么时候转移到老年代跟之前原则一样 唯一不同的是对大对象的处理</p>
+<p>G1有专门分配大对象的region叫Humongous区 而不是让大对象直接进入老年代的Region中 在G1中 大对象的判定规则就是一个大对象超过了一个Region大小的50%<br>比如每个Region是2M 只要一个大对象超过了1M 就会被放入Humongous中<br>而且一个大对象如果太大 可能会横跨多个Region来存放<br>Humongous区专门存放短期巨型对象 不用直接进老年代<br>可以节约老年代空间 避免因为老年代空间不够的GC开销</p>
+<p>Full GC的时候除了专门收集年轻代和老年代之外 也会将Humongous区一并回收</p>
+<p> G1垃圾回收阶段：</p>
+<p><img src="img/image-20220804001615315.png" alt="image-20220804001615315"></p>
+<p> 初试标记：只标记gc root跟对象，非常快，其他线程阻塞</p>
+<p>并发标记：其他线程开始运行，同时并发标记上阶段gc root引用的对象</p>
+<p>最终标记：并发运行的时候还会产生新的垃圾，这个时候线程已经开启了，关了再开很浪费资源，刚好多线程一起来标记</p>
+<p>筛选回收：根据优先级，筛选出首先收集的region</p>
+<p><strong>RSet（Remembered Set、记忆集）</strong></p>
+<p>在垃圾收集过程中，会存在一种现象，即跨代引用，在G1中，又叫跨Region引用。如果是年轻代指向老年代的引用我们不用关心，因为即使Minor GC把年轻代的对象清理掉了，程序依然能正常运行，而且随着引用链的断掉，无法被标记到的老年代对象会被后续的Major GC回收。如果是老年代指向年轻代的引用，那这个引用在Minor GC阶段是不能被回收掉的，那如何解决这个问题呢？</p>
+<p>最简单的实现方式当然是每个对象中记录这个跨Region引用记录，GC时扫描所有老年代的对象，显然这是一个相当大的Overhead。为什么呢？因为IBM做过这样的实验，发现绝大多数对象都是“朝生夕灭”，等不到进入老年代，能进入老年代的对象最多不到5%。JVM的新生代内存比例是8:1:1也是基于这个结论设定的。</p>
+<p>最合理的实现方式自然是记录哪些Region中的老年代的对象有指向年轻代的引用。GC时扫描这些Region就行了。这就是RSet存在的意义。RSet本质上是一种哈希表，Key是Region的起始地址，Value是一个集合，里面存储的元素是卡表的索引号。</p>
+<p><strong>Card Table（卡表）</strong></p>
+<p>每个Region又被分成了若干个大小为512字节的Card，这些Card都会记录在全局卡表中。Card中的每个元素对应着其标识的内存区域中一块特定大小的内存块，这个内存块被称为卡页。一个卡页的内存中通常不止一个对象，只有卡页中有一个及以上对象的字段存在着跨Region引用，这个对应的元素的值就标识为1。</p>
+<p>比如G1默认的Region有2048个，默认每个Region为2M，那每个Region对应的Card的每个元素对应的卡页的大小为2M / 512=4K，即这4K内存中只要有一个或一个以上的对象存在着跨Region对年轻代的引用，这个卡页对应的Card的元素值为1。</p>
+<p><img src="img/b58f8c5494eef01f0e3333ff139ac923bc317d4b.jpeg" alt="img"></p>
+<p>这样在Minor GC时，只需要将变脏的Region中的那个卡页加入GC Roots一并扫描即可。比起扫描老年代的所有对象，大大减少了扫描的数据量，提升了效率。</p>
+<p>Young Collection,  Young Collection + Concurrent Mark,  Mixed Collection</p>
+<ol>
+<li><p>Young Collection</p>
+<p>新生代回收：伊甸园满了，就根据gc root标记把垃圾筛选出来，然后把存活的对象扔到幸存者区域，幸存者区域次数够了扔老年代</p>
+<blockquote>
+<p><strong>卡表</strong></p>
+<p>找Gc Root对象的引用时，有一部分对象是在老年代里的，老年代区域比较大，因为你只回收伊甸园的新生代 东西不多，为了不遍历庞大的老年代，老年代存储的时候会对对象进行标记，如果他引用了新生代伊甸园的对象，他就是脏卡，到时候找Gc Root对象时就只遍历脏卡就可以了。</p>
+<p>所有脏卡都记录在remembered set里。</p>
+<p>每当引用变更时，就会记录在一个脏卡队列dirty card queue里，由专门的线程concurrent refinement threads去更改卡的情况，在remembered set里记录或删除。</p>
+<p>hotspot使用一种叫做”卡表”的方式实现记忆集<br>关于卡表和记忆集的关系可以比作HashMap和Map和关系<br>卡表是使用一个字节数组实现CARD_TABLE[]<br>每个元素对应其标识的内存区域一块特定大小的内存块 成为卡页</p>
+<p>hotspot使用的卡页是2^9大小 即512字节<br>一个卡页中可包含多个对象 只要有一个对象的字段存在跨代指针<br>其对应的卡表元素标识就变成1 表示该元素变脏 否则为0<br><strong>GC时 只要筛选本收集区的卡表中变脏的元素加入GCRoots里</strong>，</p>
+<p><strong>主要目的：省的遍历庞大的老年代去找GCRoots，直接对着卡表里直接找到</strong></p>
+</blockquote>
+</li>
+<li><p>Young Collection + Concurrent Mark</p>
+<p>新生代回收+并发标记</p>
+</li>
+<li><p>Mixed Collection</p>
+</li>
+</ol>
+<p>g1和cms在 并发标记失败，回收垃圾速度跟不上生产垃圾速度时才会出发full gc</p>
+<ol start="2">
+<li>垃圾回收调优</li>
+</ol>
+<h1 id="4-synchronized字节码解析"><a href="#4-synchronized字节码解析" class="headerlink" title="4.synchronized字节码解析"></a>4.synchronized字节码解析</h1><p>如果进入synchronized后，出现异常，会利用异常表，goto进入,</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">先把异常存到变量槽位中，</span><br><span class="line"></span><br><span class="line">然后加载锁引用，继续monitorexit解锁，</span><br><span class="line"></span><br><span class="line">然后加载出来异常到操作数栈上</span><br><span class="line"></span><br><span class="line">然后把异常抛出</span><br></pre></td></tr></table></figure>
+
+<p>同样，如果goto进去还有异常，也会继续进goto代码，把上面流程再来一遍，循环解锁，直到解锁</p>
+<p><img src="img/image-20220623154533551.png" alt="image-20220623154533551"></p>
+<h1 id="双亲委派机制"><a href="#双亲委派机制" class="headerlink" title="双亲委派机制"></a>双亲委派机制</h1><p>首先找父类加载，一直到最顶的bootstrap类加载器，有了加载没了再子类加载</p>
+<p>loadClass方法里 调用 parent.loadClass();</p>
+<h1 id="运行时数据区"><a href="#运行时数据区" class="headerlink" title="运行时数据区"></a>运行时数据区</h1><ul>
+<li><p>方法区：静态加载类的常量等信息，1.7之前是永久代实现，常量池和串池包括一些类加载器，都在这里，东西太多了，容易oom。1.7以后就用 元空间实现，直接放本地内存（因为都是常量和类基础信息，不经常改变了），并且把串池 放在堆里。（字符串常量放堆里，其他常量 直接内存）</p>
+</li>
+<li><p>堆：保存类的实例</p>
+</li>
+</ul>
+<blockquote>
+<p>这俩是线程共有的，会产生线程安全问题</p>
+</blockquote>
+<p>虚拟机栈，本地方法栈，程序计数器 都是线程私有的不会产生线程安全问题</p>
+<ul>
+<li><p>虚拟机栈：每个线程都会有的，里面一个一个栈帧frame，代表调用的方法，调用完弹出栈</p>
+</li>
+<li><p>本地方法栈：调用native，c语言方法的栈</p>
+</li>
+</ul>
+<p><img src="img/image-20220802161852613.png" alt="image-20220802161852613"></p>
+<ul>
+<li>程序计数器：PC，上下文切换时，让出cpu保存程序执行位置，抢到cpu从中取出上次的位置，继续执行</li>
+</ul>
+<p>栈   中   局部变量表中的 对象  引用，指向堆的实例</p>
+<p><img src="img/image-20220802163723545.png" alt="image-20220802163723545"></p>
+<p>静态变量 对象  加载在 方法区  指向堆的实例对象</p>
+<p><img src="img/image-20220802163955333.png" alt="image-20220802163955333"></p>
+<p>堆内存 存实例对象 new Stu（）； 如何确定是Stu类呢？对象头有一个classpointer指向 方法区里加载的对应类的元数据的内存地址</p>
+<p><img src="img/image-20220802163447294.png" alt="image-20220802163447294"></p>
+<p>方法区包括：class，classloader，常量池，串池</p>
+<p>1.6 方法区 在jvm内实现，叫永久代，常量池包括串池，并且常量池都在方法区内</p>
+<p>1.8 方法区 在内存实现，叫元空间，常量池单独在方法区，串池不再属于常量池而是放在堆里</p>
+<h1 id="类加载流程"><a href="#类加载流程" class="headerlink" title="类加载流程"></a>类加载流程</h1><h2 id="加载"><a href="#加载" class="headerlink" title="加载"></a><strong>加载</strong></h2><p>1.通过一个类的全限定名 来获取 定义此类的二进制字节流</p>
+<p>2.将这个字节流所代表的的静态存储结构  转化 为 方法区的运行时数据结构</p>
+<p>3.在内存生成一个代表这个类的java.lang.Class对象，作为方法区此类各种数据的访问入口</p>
+<blockquote>
+<p>可以从zip压缩包获取二进制字节流，后续jar包，war包格式的基础</p>
+<p>反射中，动态代理，为特定接口实现代理类的二进制字节流</p>
+<p>由其他文件生成，如jsp文件可以生成class文件</p>
+<p>从加密文件中获取，防止class被反编译的保护措施</p>
+</blockquote>
+<p>总结：获取 字节流，转换字节流为方法区要求格式，在堆内存生成class对象</p>
+<h2 id="连接"><a href="#连接" class="headerlink" title="连接"></a><strong>连接</strong></h2><h3 id="验证"><a href="#验证" class="headerlink" title="验证"></a><strong>验证</strong></h3><p>1.文件格式验证（<strong>此部分文件格式验证 有些验证会在 上一个阶段“加载”就开始了</strong>）</p>
+<ul>
+<li>magic 魔数16进制下是否是cafebabe，也就是0xcafebabe</li>
+<li>紧接着后面几个字节代表的是主次版本号，验证主次版本号是否在本虚拟机接收范围</li>
+</ul>
+<p>2.元数据验证</p>
+<ul>
+<li>除了Object类是否都有子类</li>
+<li>是否有类继承了 不可继承的类（如final修饰的类不能被继承）</li>
+<li>是否修改了final定义的属性</li>
+</ul>
+<p>3.字节码验证</p>
+<p>检验字节码确定语义合法，符合逻辑，不会对虚拟机造成安全问题。</p>
+<ul>
+<li>任意地方操作数栈上的数据类型，要和指令代码使用的类型对应</li>
+</ul>
+<p>4.符号引用验证</p>
+<p>确保在下个阶段 “解析”时 吧符号引用转化成直接引用的安全。</p>
+<ul>
+<li>是否缺少某依赖的外部类。</li>
+<li>是否能通过字节码字符串描述的全限定名找到对应的类。</li>
+<li>根据修饰符privat，ptotected，public等 验证是否可以被访问</li>
+</ul>
+<h3 id="准备"><a href="#准备" class="headerlink" title="准备"></a>准备</h3><p>为类中定义的  静态变量，即static修饰的变量 分配内存并赋初始值</p>
+<p><code>static int a = 123;</code></p>
+<p>会给a 分配内存并赋值int的默认值0；（初始化阶段才会赋值123）</p>
+<h3 id="解析"><a href="#解析" class="headerlink" title="解析"></a>解析</h3><p>把常量池内符号引用换成直接引用。得到类，方法，字段的内存地址。</p>
+<p>符号引用： 字节码里#1啥的 ，只要无歧义可以找到对应目标就是。</p>
+<p>直接引用： 跟虚拟机内存布局分配相关的，如 指向目标的指针，定位到目标的句柄等。</p>
+<blockquote>
+<p>同样的符号引用在不同的虚拟机翻译过来的 一般不一样。</p>
+<p>有直接引用，引用的目标肯定已经在虚拟机内存中存在</p>
+</blockquote>
+<h2 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h2><p>根据程序员的代码去初始化类变量和替他资源。</p>
+<p>执行javac编译器 收集各个静态代码块后生成的  &lt; clinit &gt;( )方法。</p>
+<p><img src="img/image-20220803151821780.png" alt="image-20220803151821780"></p>
+<h2 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h2><p>程序跑起来，使用前面加载好的类。</p>
+<h2 id="卸载"><a href="#卸载" class="headerlink" title="卸载"></a>卸载</h2><p>卸载类即该类的 Class 对象被 GC。</p>
+<p>卸载类需要满足 3 个要求:</p>
+<ol>
+<li>该类的所有的实例对象都已被 GC，也就是说堆不存在该类的实例对象。</li>
+<li>该类没有在其他任何地方被引用</li>
+<li>该类的类加载器的实例已被 GC</li>
+</ol>
+<p>所以，在 JVM 生命周期内，由 <strong>jvm 自带的类加载器加载的类是不会被卸载的</strong>。但是由我们自定义的类加载器加载的类是可能被卸载的。</p>
+<p>只要想通一点就好了，jdk 自带的 <code>BootstrapClassLoader</code>, <code>ExtClassLoader</code>, <code>AppClassLoader</code> 负责加载 jdk 提供的类，所以它们(类加载器的实例)肯定不会被回收。而我们自定义的类加载器的实例是可以被回收的，所以使用我们自定义加载器加载的类是可以被卸载掉的。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/08/15/%E9%9B%86%E5%90%88/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="0xiceee">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/08/15/%E9%9B%86%E5%90%88/" class="post-title-link" itemprop="url">未命名</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-08-15 11:14:55 / 修改时间：11:04:26" itemprop="dateCreated datePublished" datetime="2022-08-15T11:14:55+08:00">2022-08-15</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="八股复习笔记"><a href="#八股复习笔记" class="headerlink" title="八股复习笔记"></a>八股复习笔记</h1> <img src="img/%E9%9B%86%E5%90%88%E4%BD%93%E7%B3%BB.png" alt="集合体系"  />
+
+
+
+<p><img src="img/image-20220616235329532.png" alt="image-20220616235329532"></p>
+<p><strong>List</strong> <strong>和</strong> <strong>Set</strong> <strong>的区别</strong></p>
+<p>List , Set 都是继承自Collection 接口</p>
+<p>List 特点：</p>
+<ul>
+<li><p>一个有序（元素存入集合的顺序和取出的顺序一致）容器，元素可以重复，可以插入多个null</p>
+<p>元素，元素都有索引。</p>
+</li>
+<li><p>和数组类似，List可以动态增长，查找元素效率高，插入删除元素效率低，因为会引起其他元素位</p>
+<p>置改变</p>
+</li>
+<li><p>常用实现类：ArrayList，LinkedList，Vector</p>
+</li>
+</ul>
+<p>Set 特点：</p>
+<ul>
+<li><p>一个无序（存入和取出顺序有可能不一致）容器，不可以存储重复元素，只允许存入一个null</p>
+<p>元素，必须保证元素唯一性。</p>
+</li>
+<li><p>检索元素效率低下，删除和插入效率高，插入和删除不会引起元素位置改变。</p>
+</li>
+<li><p>常用实现类：HashSet，LinkedHashSet，TreeSet</p>
+</li>
+</ul>
+<p><strong>另外 List 支持for循环，也就是通过下标来遍历，也可以用迭代器，但是set只能用迭代，因为他无序，</strong></p>
+<p><strong>无法用下标来取得想要的值。</strong></p>
+<p><img src="img/image-20220616234809347.png" alt="image-20220616234809347"></p>
+<p>hashCode（）与equals（）的相关规定：</p>
+<p>\1. 如果两个对象相等，则hashcode一定也是相同的</p>
+<p>\2. 两个对象相等,对两个equals方法返回true</p>
+<p>\3. 两个对象有相同的hashcode值，它们也不一定是相等的</p>
+<p>\4. 综上，equals方法被覆盖过，则hashCode方法也必须被覆盖</p>
+<p>\5. hashCode()的默认行为是对堆上的对象产生独特值。如果没有重写hashCode()，则该class的两个</p>
+<p>对象无论如何都不会相等（即使这两个对象指向相同的数据）。</p>
+<p>==与equals的区别</p>
+<p>\1. ==是判断两个变量或实例是不是指向同一个内存空间 equals是判断两个变量或实例所指向的内存</p>
+<p>空间的值是不是相同</p>
+<p>\2. ==是指对内存地址进行比较 equals()是对字符串的内容进行比较3.== 指引用是否相同 equals()指的</p>
+<p>是值是否相同</p>
+<p>当我们提到HashSet时，第一件事情就是在将对象存储在HashSet之 前，要先确保对象重写equals()和hashCode()方法，这样才能比较对象的值是否相等，以确保set中没有储存相等的对象。</p>
+<p>HashMap实现了Map接口，Map接口对键值对进行映射。Map中不允许重复的键。Map接口有两个基本的实现，HashMap和 TreeMap。TreeMap保存了对象的排列次序，而HashMap则不能。HashMap允许键和值为null。HashMap是非synchronized 的，但collection框架提供方法能保证HashMap synchronized，这样多个线程同时访问HashMap时，能保证只有一个线程更改 Map。</p>
+<h2 id="HashMap多线程的死循环问题"><a href="#HashMap多线程的死循环问题" class="headerlink" title="HashMap多线程的死循环问题"></a>HashMap多线程的死循环问题</h2><p><a target="_blank" rel="noopener" href="https://coolshell.cn/articles/9606.html">https://coolshell.cn/articles/9606.html</a></p>
+<p>从前我们的Java代码因为一些原因使用了HashMap这个东西，但是当时的程序是单线程的，一切都没有问题。后来，我们的程序性能有问题，所以需要变成多线程的，于是，变成多线程后到了线上，发现程序经常占了100%的CPU，查看堆栈，你会发现程序都Hang在了HashMap.get()这个方法上了，重启程序后问题消失。但是过段时间又会来。而且，这个问题在测试环境里可能很难重现。</p>
+<p>我们简单的看一下我们自己的代码，我们就知道HashMap被多个线程操作。而Java的文档说HashMap是非线程安全的，应该用ConcurrentHashMap。</p>
+<p>简单总结一下HashMap是使用了哪些方法来有效解决哈希冲突的：</p>
+<p>\1. 使用链地址法（使用散列表）来链接拥有相同hash值的数据；</p>
+<p>\2. 使用2次扰动函数（hash函数）来降低哈希冲突的概率，使得数据分布更平均；</p>
+<p>\3. 引入红黑树进一步降低遍历的时间复杂度，使得遍历更快；</p>
+<p>如果使用Object作为HashMap的Key，应该怎么办呢？</p>
+<p>答：重写hashCode()和equals()方法</p>
+<p>\1. 重写hashCode()是因为需要计算存储数据的存储位置，需要<strong>注意不要试图从散列码计算中排除掉一</strong></p>
+<p><strong>个对象的关键部分来提高性能，这样虽然能更快但可能会导致更多的Hash碰撞</strong>；</p>
+<p>\2. 重写equals()方法，需要遵守自反性、对称性、传递性、一致性以及对于任何非null的引用值x，x.equals(null)必须返回false的这几个特性，<strong>目的是为了保证key在哈希表中的唯一性</strong></p>
+<p>hashCode()和equals()一样都是基本类Object里的方法，而和equals()一样，Object里hashCode()里面只是返回当前对象的地址，如果是这样的话，那么我们相同的一个类，new两个对象，由于他们在内存里的地址不同，则他们的hashCode（）不同，所以这显然不是我们想要的，所以我们必须重写我们类的hashCode()方法，即一个类，在hashCode()里面返回唯一的一个hash值<br>所以如果我们的对象要想放进hashSet，并且发挥hashSet的特性（即不包含一样的对象），则我们就要重写我们类的hashCode()和equals()方法了。像String,Integer等这种类内部都已经重写了这两个方法，<strong>从而保证两个对象长得一样hashcode就一样，哪怕是两个new出来的地址不同。</strong></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="http://example.com/2021/11/17/Proxy/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1176,7 +2980,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-count">6</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -1216,7 +3020,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2021</span>
+  <span itemprop="copyrightYear">2022</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
